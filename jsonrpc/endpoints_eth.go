@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/0xPolygonHermez/zkevm-node/blob"
 	"math/big"
 	"net/http"
 	"strings"
@@ -210,6 +211,10 @@ func (e *EthEndpoints) GasPrice() (interface{}, types.Error) {
 		return "0x0", nil
 	}
 	return hex.EncodeUint64(gasPrices.L2GasPrice), nil
+}
+
+func (e *EthEndpoints) BlobBaseFee() (interface{}, types.Error) {
+	return hex.EncodeUint64(1000000000), nil
 }
 
 func (e *EthEndpoints) getPriceFromSequencerNode() (interface{}, types.Error) {
@@ -976,13 +981,17 @@ func (e *EthEndpoints) tryToAddTxToPool(input, ip string) (interface{}, types.Er
 	if err != nil {
 		return RPCErrorResponse(types.InvalidParamsErrorCode, "invalid tx input", err, false)
 	}
-	log.Infof("adding TX to the pool: %v", tx.Hash().Hex())
+	log.Infof("adding TX to the pool: %v", blob.GetTxHash(*tx).Hex())
 	if err := e.pool.AddTx(context.Background(), *tx, ip); err != nil {
 		// it's not needed to log the error here, because we check and log if needed
 		// for each specific case during the "pool.AddTx" internal steps
 		return RPCErrorResponse(types.DefaultErrorCode, err.Error(), nil, false)
 	}
-	log.Infof("TX added to the pool: %v", tx.Hash().Hex())
+	log.Infof("TX added to the pool: %v", blob.GetTxHash(*tx).Hex())
+
+	if tx.Type() == ethTypes.BlobTxType {
+		return blob.BlobTxToLegacyTx(*tx).Hash().Hex(), nil
+	}
 
 	return tx.Hash().Hex(), nil
 }
