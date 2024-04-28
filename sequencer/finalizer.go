@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-data-streamer/datastreamer"
+	ethermanTypes "github.com/0xPolygonHermez/zkevm-node/etherman"
 	"github.com/0xPolygonHermez/zkevm-node/event"
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/log"
@@ -38,7 +39,7 @@ type finalizer struct {
 	workerIntf       workerInterface
 	poolIntf         txPool
 	stateIntf        stateInterface
-	etherman         etherman
+	etherman         ethermanInterface
 	wipBatch         *Batch
 	wipL2Block       *L2Block
 	batchConstraints state.BatchConstraintsCfg
@@ -87,7 +88,7 @@ func newFinalizer(
 	workerIntf workerInterface,
 	poolIntf txPool,
 	stateIntf stateInterface,
-	etherman etherman,
+	etherman ethermanInterface,
 	sequencerAddr common.Address,
 	isSynced func(ctx context.Context) bool,
 	batchConstraints state.BatchConstraintsCfg,
@@ -220,13 +221,109 @@ func (f *finalizer) updateFlushIDs(newPendingFlushID, newStoredFlushID uint64) {
 	f.storedFlushIDCond.L.Unlock()
 }
 
+func (f *finalizer) checkValidL1InfoRoot(ctx context.Context, l1InfoRoot state.L1InfoTreeExitRootStorageEntry) (bool, error) {
+	// Check L1 block hash matches
+	l1BlockState, err := f.stateIntf.GetBlockByNumber(ctx, l1InfoRoot.BlockNumber, nil)
+	if err != nil {
+		return false, fmt.Errorf("error getting L1 block %d from the state, error: %v", l1InfoRoot.BlockNumber, err)
+	}
+
+	l1BlockEth, err := f.etherman.HeaderByNumber(ctx, new(big.Int).SetUint64(l1InfoRoot.BlockNumber))
+	if err != nil {
+		return false, fmt.Errorf("error getting L1 block %d from ethereum, error: %v", l1InfoRoot.BlockNumber, err)
+	}
+
+	if l1BlockState.BlockHash != l1BlockEth.Hash() {
+		warnmsg := fmt.Sprintf("invalid l1InfoRoot %s, index: %d, GER: %s, l1Block: %d. L1 block hash %s doesn't match block hash on ethereum %s (L1 reorg?)",
+			l1InfoRoot.L1InfoTreeRoot, l1InfoRoot.L1InfoTreeIndex, l1InfoRoot.GlobalExitRoot.GlobalExitRoot, l1InfoRoot.BlockNumber, l1BlockState.BlockHash, l1BlockEth.Hash())
+		log.Warnf(warnmsg)
+		f.LogEvent(ctx, event.Level_Critical, event.EventID_InvalidInfoRoot, warnmsg, nil)
+
+		return false, nil
+	}
+
+	// Check l1InfoRootIndex and GER matches
+	// We retrieve first the info of the last l1InfoTree event in the block
+	log.Debugf("getting l1InfoRoot events for L1 block %d, hash: %s", l1InfoRoot.BlockNumber, l1BlockState.BlockHash)
+	blocks, eventsOrder, err := f.etherman.GetRollupInfoByBlockRange(ctx, l1InfoRoot.BlockNumber, &l1InfoRoot.BlockNumber)
+	if err != nil {
+		return false, err
+	}
+
+	// Since in the case we have several l1InfoTree events in the same block, we retrieve only the GER of last one and skips the others
+	lastGER := state.ZeroHash
+	for _, block := range blocks {
+		blockEventsOrder := eventsOrder[block.BlockHash]
+		for _, order := range blockEventsOrder {
+			if order.Name == ethermanTypes.L1InfoTreeOrder {
+				lastGER = block.L1InfoTree[order.Pos].GlobalExitRoot
+				log.Debugf("l1InfoTree event, pos: %d, GER: %s", order.Pos, lastGER)
+			}
+		}
+	}
+
+	// Get the deposit count in the moment when the L1InfoRoot was synced
+	depositCount, err := f.etherman.DepositCount(ctx, &l1InfoRoot.BlockNumber)
+	if err != nil {
+		return false, err
+	}
+	// l1InfoTree index starts at 0, therefore we need to subtract 1 to the depositCount to get the last index at that moment
+	index := uint32(depositCount.Uint64())
+	if index > 0 { // we check this as protection, but depositCount should be greater that 0 in this context
+		index--
+	} else {
+		warnmsg := fmt.Sprintf("invalid l1InfoRoot %s, index: %d, GER: %s, blockNum: %d. DepositCount value returned by the smartcontrat is 0 and that isn't possible in this context",
+			l1InfoRoot.L1InfoTreeRoot, l1InfoRoot.L1InfoTreeIndex, l1InfoRoot.GlobalExitRoot.GlobalExitRoot, l1InfoRoot.BlockNumber)
+		log.Warn(warnmsg)
+		f.LogEvent(ctx, event.Level_Critical, event.EventID_InvalidInfoRoot, warnmsg, nil)
+
+		return false, nil
+	}
+
+	log.Debugf("checking valid l1InfoRoot, index: %d, GER: %s, l1Block: %d, scIndex: %d, scGER: %s",
+		l1InfoRoot.BlockNumber, l1InfoRoot.L1InfoTreeIndex, l1InfoRoot.GlobalExitRoot.GlobalExitRoot, index, lastGER)
+
+	if (l1InfoRoot.GlobalExitRoot.GlobalExitRoot != lastGER) || (l1InfoRoot.L1InfoTreeIndex != index) {
+		warnmsg := fmt.Sprintf("invalid l1InfoRoot %s, index: %d, GER: %s, blockNum: %d. It doesn't match with smartcontract l1InfoRoot, index: %d, GER: %s",
+			l1InfoRoot.L1InfoTreeRoot, l1InfoRoot.L1InfoTreeIndex, l1InfoRoot.GlobalExitRoot.GlobalExitRoot, l1InfoRoot.BlockNumber, index, lastGER)
+		log.Warn(warnmsg)
+		f.LogEvent(ctx, event.Level_Critical, event.EventID_InvalidInfoRoot, warnmsg, nil)
+
+		return false, nil
+	}
+
+	return true, nil
+}
+
 func (f *finalizer) checkL1InfoTreeUpdate(ctx context.Context) {
+	broadcastL1InfoTreeValid := func() {
+		if !f.lastL1InfoTreeValid {
+			f.lastL1InfoTreeCond.L.Lock()
+			f.lastL1InfoTreeValid = true
+			f.lastL1InfoTreeCond.Broadcast()
+			f.lastL1InfoTreeCond.L.Unlock()
+		}
+	}
+
 	firstL1InfoRootUpdate := true
+	skipFirstSleep := true
+
+	if f.cfg.L1InfoTreeCheckInterval.Duration.Seconds() == 0 { //nolint:gomnd
+		broadcastL1InfoTreeValid()
+		return
+	}
 
 	for {
+		if skipFirstSleep {
+			skipFirstSleep = false
+		} else {
+			time.Sleep(f.cfg.L1InfoTreeCheckInterval.Duration)
+		}
+
 		lastL1BlockNumber, err := f.etherman.GetLatestBlockNumber(ctx)
 		if err != nil {
 			log.Errorf("error getting latest L1 block number, error: %v", err)
+			continue
 		}
 
 		maxBlockNumber := uint64(0)
@@ -236,7 +333,7 @@ func (f *finalizer) checkL1InfoTreeUpdate(ctx context.Context) {
 
 		l1InfoRoot, err := f.stateIntf.GetLatestL1InfoRoot(ctx, maxBlockNumber)
 		if err != nil {
-			log.Errorf("error checking latest L1InfoRoot, error: %v", err)
+			log.Errorf("error getting latest l1InfoRoot, error: %v", err)
 			continue
 		}
 
@@ -246,23 +343,30 @@ func (f *finalizer) checkL1InfoTreeUpdate(ctx context.Context) {
 		}
 
 		if firstL1InfoRootUpdate || l1InfoRoot.L1InfoTreeIndex > f.lastL1InfoTree.L1InfoTreeIndex {
-			firstL1InfoRootUpdate = false
+			log.Infof("received new l1InfoRoot %s, index: %d, l1Block: %d", l1InfoRoot.L1InfoTreeRoot, l1InfoRoot.L1InfoTreeIndex, l1InfoRoot.BlockNumber)
 
-			log.Debugf("received new L1InfoRoot. L1InfoTreeIndex: %d", l1InfoRoot.L1InfoTreeIndex)
+			// Check if new l1InfoRoot is valid. We skip it if l1InfoTreeIndex is 0 (it's a special case)
+			if l1InfoRoot.L1InfoTreeIndex > 0 {
+				valid, err := f.checkValidL1InfoRoot(ctx, l1InfoRoot)
+				if err != nil {
+					log.Errorf("error validating new l1InfoRoot, index: %d, error: %v", l1InfoRoot.L1InfoTreeIndex, err)
+					continue
+				}
+
+				if !valid {
+					log.Warnf("invalid l1InfoRoot %s, index: %d, l1Block: %d. Stopping syncing l1InfoTreeIndex", l1InfoRoot.L1InfoTreeRoot, l1InfoRoot.L1InfoTreeIndex, l1InfoRoot.BlockNumber)
+					return
+				}
+			}
+
+			firstL1InfoRootUpdate = false
 
 			f.lastL1InfoTreeMux.Lock()
 			f.lastL1InfoTree = l1InfoRoot
 			f.lastL1InfoTreeMux.Unlock()
 
-			if !f.lastL1InfoTreeValid {
-				f.lastL1InfoTreeCond.L.Lock()
-				f.lastL1InfoTreeValid = true
-				f.lastL1InfoTreeCond.Broadcast()
-				f.lastL1InfoTreeCond.L.Unlock()
-			}
+			broadcastL1InfoTreeValid()
 		}
-
-		time.Sleep(f.cfg.L1InfoTreeCheckInterval.Duration)
 	}
 }
 

@@ -141,7 +141,7 @@ func (s *State) StoreTransactions(ctx context.Context, batchNumber uint64, proce
 		}
 
 		// firstTxToInsert := len(existingTxs)
-
+		txIndex := 0
 		for i := 0; i < len(processedTxs); i++ {
 			processedTx := processedTxs[i]
 			// if the transaction has an intrinsic invalid tx error it means
@@ -169,7 +169,7 @@ func (s *State) StoreTransactions(ctx context.Context, batchNumber uint64, proce
 			header.BlockInfoRoot = processedBlock.BlockInfoRoot
 			transactions := []*types.Transaction{&processedTx.Tx}
 
-			receipt := GenerateReceipt(header.Number, processedTx, uint(i), forkID)
+			receipt := GenerateReceipt(header.Number, processedTx, uint(txIndex), forkID)
 			if !CheckLogOrder(receipt.Logs) {
 				return fmt.Errorf("error: logs received from executor are not in order")
 			}
@@ -193,6 +193,7 @@ func (s *State) StoreTransactions(ctx context.Context, batchNumber uint64, proce
 			if err := s.AddL2Block(ctx, batchNumber, l2Block, receipts, txsL2Hash, storeTxsEGPData, imStateRoots, dbTx); err != nil {
 				return err
 			}
+			txIndex++
 		}
 	}
 	return nil
@@ -252,11 +253,9 @@ func (s *State) StoreL2Block(ctx context.Context, batchNumber uint64, l2Block *P
 		if executor.IsInvalidL2Block(executor.RomErrorCode(txResponse.RomError)) {
 			continue
 		}
-
 		txResp := *txResponse
 		transactions = append(transactions, &txResp.Tx)
 		txsL2Hash = append(txsL2Hash, txResp.TxHashL2_V2)
-
 		storeTxEGPData := StoreTxEGPData{EGPLog: nil, EffectivePercentage: uint8(txResponse.EffectivePercentage)}
 		if txsEGPLog != nil {
 			storeTxEGPData.EGPLog = txsEGPLog[i]
@@ -509,8 +508,7 @@ func (s *State) internalProcessUnsignedTransactionV2(ctx context.Context, tx *ty
 	}
 	nonce := loadedNonce.Uint64()
 
-	deltaTimestamp := uint32(uint64(time.Now().Unix()) - l2Block.Time())
-	transactions := s.BuildChangeL2Block(deltaTimestamp, uint32(0))
+	transactions := s.BuildChangeL2Block(uint32(0), uint32(0))
 
 	batchL2Data, err := EncodeUnsignedTransaction(*tx, s.cfg.ChainID, &nonce, forkID)
 	if err != nil {
@@ -535,7 +533,7 @@ func (s *State) internalProcessUnsignedTransactionV2(ctx context.Context, tx *ty
 
 		// v2 fields
 		L1InfoRoot:             l2Block.BlockInfoRoot().Bytes(),
-		TimestampLimit:         uint64(time.Now().Unix()),
+		TimestampLimit:         l2Block.Time(),
 		SkipFirstChangeL2Block: cFalse,
 		SkipWriteBlockInfoRoot: cTrue,
 	}
@@ -543,14 +541,15 @@ func (s *State) internalProcessUnsignedTransactionV2(ctx context.Context, tx *ty
 		processBatchRequestV2.NoCounters = cTrue
 	}
 
-	log.Debugf("internalProcessUnsignedTransactionV2[processBatchRequestV2.From]: %v", processBatchRequestV2.From)
 	log.Debugf("internalProcessUnsignedTransactionV2[processBatchRequestV2.OldBatchNum]: %v", processBatchRequestV2.OldBatchNum)
 	log.Debugf("internalProcessUnsignedTransactionV2[processBatchRequestV2.OldStateRoot]: %v", hex.EncodeToHex(processBatchRequestV2.OldStateRoot))
 	log.Debugf("internalProcessUnsignedTransactionV2[processBatchRequestV2.OldAccInputHash]: %v", hex.EncodeToHex(processBatchRequestV2.OldAccInputHash))
+
 	log.Debugf("internalProcessUnsignedTransactionV2[processBatchRequestV2.Coinbase]: %v", processBatchRequestV2.Coinbase)
-	log.Debugf("internalProcessUnsignedTransactionV2[processBatchRequestV2.ForkId]: %v", processBatchRequestV2.ForkId)
-	log.Debugf("internalProcessUnsignedTransactionV2[processBatchRequestV2.ChainId]: %v", processBatchRequestV2.ChainId)
 	log.Debugf("internalProcessUnsignedTransactionV2[processBatchRequestV2.UpdateMerkleTree]: %v", processBatchRequestV2.UpdateMerkleTree)
+	log.Debugf("internalProcessUnsignedTransactionV2[processBatchRequestV2.ChainId]: %v", processBatchRequestV2.ChainId)
+	log.Debugf("internalProcessUnsignedTransactionV2[processBatchRequestV2.ForkId]: %v", processBatchRequestV2.ForkId)
+	log.Debugf("internalProcessUnsignedTransactionV2[processBatchRequestV2.From]: %v", processBatchRequestV2.From)
 	log.Debugf("internalProcessUnsignedTransactionV2[processBatchRequestV2.ContextId]: %v", processBatchRequestV2.ContextId)
 
 	log.Debugf("internalProcessUnsignedTransactionV2[processBatchRequestV2.L1InfoRoot]: %v", hex.EncodeToHex(processBatchRequestV2.L1InfoRoot))
@@ -601,7 +600,7 @@ func (s *State) internalProcessUnsignedTransactionV2(ctx context.Context, tx *ty
 
 	if err == nil && processBatchResponseV2.Error != executor.ExecutorError_EXECUTOR_ERROR_NO_ERROR {
 		err = executor.ExecutorErr(processBatchResponseV2.Error)
-		s.eventLog.LogExecutorErrorV2(ctx, processBatchResponseV2.Error, processBatchRequestV2)
+		s.eventLog.LogExecutorError(ctx, processBatchResponseV2.Error, processBatchRequestV2)
 		return nil, err
 	}
 
@@ -1041,7 +1040,7 @@ func (s *State) internalTestGasEstimationTransactionV2(ctx context.Context, batc
 	}
 	if processBatchResponseV2.Error != executor.ExecutorError_EXECUTOR_ERROR_NO_ERROR {
 		err = executor.ExecutorErr(processBatchResponseV2.Error)
-		s.eventLog.LogExecutorErrorV2(ctx, processBatchResponseV2.Error, processBatchRequestV2)
+		s.eventLog.LogExecutorError(ctx, processBatchResponseV2.Error, processBatchRequestV2)
 		return false, false, gasUsed, nil, err
 	}
 	if processBatchResponseV2.ErrorRom != executor.RomError_ROM_ERROR_NO_ERROR {
