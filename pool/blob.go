@@ -54,3 +54,7 @@ func (p *Pool) validateBlobTx(ctx context.Context, tx types.Transaction) error {
 
 	return nil
 }
+
+func (p *Pool) GetBlobTx(ctx context.Context, hash common.Hash) ([]byte, error) {
+	return p.BlobDB.Get([]byte(fmt.Sprintf("blob-%s", hash.Hex())), nil)
+}

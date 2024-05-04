@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/0xPolygonHermez/zkevm-node/blob"
+	"github.com/syndtr/goleveldb/leveldb"
 	"math/big"
 	"net/http"
 	"strings"
@@ -680,12 +681,31 @@ func (e *EthEndpoints) GetTransactionByHash(hash types.ArgHash, includeExtraInfo
 				l2Hash = l2h
 			}
 
-			res, err := types.NewTransaction(*tx, receipt, false, l2Hash)
-			if err != nil {
-				return RPCErrorResponse(types.DefaultErrorCode, "failed to build transaction response", err, true)
+			data, err := e.pool.GetBlobTx(ctx, hash.Hash())
+			if err != nil && !errors.Is(err, leveldb.ErrNotFound) {
+				return RPCErrorResponse(types.DefaultErrorCode, "failed to load blob tx from leveldb", err, true)
 			}
 
-			return res, nil
+			if errors.Is(err, leveldb.ErrNotFound) {
+				res, err := types.NewTransaction(*tx, receipt, false, l2Hash)
+				if err != nil {
+					return RPCErrorResponse(types.DefaultErrorCode, "failed to build transaction response", err, true)
+				}
+
+				return res, nil
+			} else {
+				newTx := new(ethTypes.Transaction)
+				if err := newTx.UnmarshalBinary(data); err != nil {
+					return RPCErrorResponse(types.DefaultErrorCode, "failed to unmarshal blob data", err, true)
+				}
+
+				res, err := types.NewBlobTransaction(*newTx, receipt, false, true, l2Hash)
+				if err != nil {
+					return RPCErrorResponse(types.DefaultErrorCode, "failed to build blob transaction response", err, true)
+				}
+
+				return res, nil
+			}
 		}
 
 		// if the tx does not exist in the state, look for it in the pool
