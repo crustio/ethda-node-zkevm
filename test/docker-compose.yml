@@ -142,6 +142,7 @@ services:
       - ~/.ethda/blob:/blob
       - ./config/test.node.config.toml:/app/config.toml
       - ./config/test.genesis.config.json:/app/genesis.json
+      - ./sequencer.keystore:/pk/sequencer.keystore
     command:
       - "/bin/sh"
       - "-c"
