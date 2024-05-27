@@ -17,6 +17,7 @@ import (
 
 // etherman contains the methods required to interact with ethereum.
 type etherman interface {
+	BuildPostZkBlobTxData(sender common.Address, batchNumber int64, hashes []common.Hash) (to *common.Address, data []byte, err error)
 	BuildSequenceBatchesTxData(sender common.Address, sequences []ethmanTypes.Sequence, maxSequenceTimestamp uint64, initSequenceBatchNumber uint64, l2Coinbase common.Address) (to *common.Address, data []byte, err error)
 	EstimateGasSequenceBatches(sender common.Address, sequences []ethmanTypes.Sequence, maxSequenceTimestamp uint64, initSequenceBatchNumber uint64, l2Coinbase common.Address) (*types.Transaction, error)
 	GetLatestBlockHeader(ctx context.Context) (*types.Header, error)

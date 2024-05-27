@@ -12,15 +12,17 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/event"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
+	"github.com/ethereum/go-ethereum/common"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/jackc/pgx/v4"
 )
 
 const (
-	ethTxManagerOwner    = "sequencer"
-	monitoredIDFormat    = "sequence-from-%v-to-%v"
-	retriesSanityCheck   = 8
-	waitRetrySanityCheck = 15 * time.Second
+	ethTxManagerOwner      = "sequencer"
+	monitoredIDFormat      = "sequence-from-%v-to-%v"
+	monitoredBatchIDFormat = "batch-%v"
+	retriesSanityCheck     = 8
+	waitRetrySanityCheck   = 15 * time.Second
 )
 
 var (
@@ -199,6 +201,43 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context) {
 		mTxLogger := ethtxmanager.CreateLogger(ethTxManagerOwner, monitoredTxID, s.cfg.SenderAddress, to)
 		mTxLogger.Errorf("error to add sequences tx to eth tx manager: ", err)
 		return
+	}
+
+	// Send merkle root to ZkBlob
+	for _, sq := range sequences {
+		batch, err := s.state.GetBatchByNumber(ctx, sq.BatchNumber, nil)
+
+		if err == state.ErrNotFound {
+			// failed to get batch by number %d, err: %w", currentBatchNumToSequence, err)
+			log.Errorf("failed to get batch by number %d, err: %w ", sq.BatchNumber, err)
+			continue
+		} else if err != nil {
+			log.Errorf("error to add send hashes and merkle-tree root to zkblob: ", err)
+			continue
+		}
+		// all hashes
+		hashes := []common.Hash{}
+		for _, tx := range batch.Transactions {
+			hashes = append(hashes, tx.Hash())
+		}
+
+		if len(hashes) == 0 {
+			continue
+		}
+
+		to, data, err := s.etherman.BuildPostZkBlobTxData(s.cfg.SenderAddress, int64(sq.BatchNumber), hashes)
+		if err != nil {
+			log.Errorf("error build postZkBlob tx data, batch number: %d: %v", sq.BatchNumber, err)
+			continue
+		}
+
+		monitoredTxID := fmt.Sprintf(monitoredBatchIDFormat, sq.BatchNumber)
+		err = s.ethTxManager.Add(ctx, ethTxManagerOwner, monitoredTxID, s.cfg.SenderAddress, to, nil, data, s.cfg.GasOffset, nil)
+		if err != nil {
+			mTxLogger := ethtxmanager.CreateLogger(ethTxManagerOwner, monitoredTxID, s.cfg.SenderAddress, to)
+			mTxLogger.Errorf("error to add postZkBlob tx to eth tx manager: ", err)
+			continue
+		}
 	}
 }
 

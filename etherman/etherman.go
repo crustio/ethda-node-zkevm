@@ -3,6 +3,7 @@ package etherman
 import (
 	"bytes"
 	"context"
+	"crypto/ecdsa"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -13,7 +14,11 @@ import (
 	"strings"
 	"time"
 
+	mt "github.com/txaty/go-merkletree"
+
 	beaconclient "github.com/0xPolygonHermez/zkevm-node/beacon_client"
+	"github.com/0xPolygonHermez/zkevm-node/blob"
+	"github.com/0xPolygonHermez/zkevm-node/blob/solidity"
 	"github.com/0xPolygonHermez/zkevm-node/encoding"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/eip4844"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/etherscan"
@@ -26,6 +31,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/pol"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/preetrogpolygonzkevm"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/preetrogpolygonzkevmglobalexitroot"
+	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/zkblob"
 	ethmanTypes "github.com/0xPolygonHermez/zkevm-node/etherman/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
@@ -180,6 +186,7 @@ type L1Config struct {
 	PolAddr common.Address `json:"polTokenAddress"`
 	// GlobalExitRootManagerAddr Address of the L1 GlobalExitRootManager contract
 	GlobalExitRootManagerAddr common.Address `json:"polygonZkEVMGlobalExitRootAddress"`
+	ZkBlobAddr                common.Address `json:"polygonZkBlobAddress"`
 }
 
 type externalGasProviders struct {
@@ -198,6 +205,7 @@ type Client struct {
 	PreEtrogGlobalExitRootManager *preetrogpolygonzkevmglobalexitroot.Preetrogpolygonzkevmglobalexitroot
 	FeijoaContracts               *FeijoaContracts
 	Pol                           *pol.Pol
+	ZkBlob                        *zkblob.Zkblob
 	SCAddresses                   []common.Address
 
 	RollupID uint32
@@ -207,6 +215,7 @@ type Client struct {
 	l1Cfg              L1Config
 	cfg                Config
 	auth               map[common.Address]bind.TransactOpts // empty in case of read-only client
+	authKeys           map[common.Address]*ecdsa.PrivateKey // test
 	EIP4844            *eip4844.EthermanEIP4844
 	eventFeijoaManager *EventManager
 }
@@ -232,6 +241,13 @@ func NewClient(cfg Config, l1Config L1Config) (*Client, error) {
 		log.Warnf("error initializing EIP-4844,Feijoa is going to be disabled.  URL:%s : %+v", cfg.ConsensusL1URL, err)
 		feijoaEnabled = false
 	}
+	// Create zkblob client
+	zkBlob, err := zkblob.NewZkblob(l1Config.ZkEVMAddr, ethClient)
+	if err != nil {
+		log.Errorf("error creating Polygonzkblob client (%s). Error: %w", l1Config.ZkBlobAddr.String(), err)
+		return nil, err
+	}
+
 	// Create smc clients
 	etrogZkevm, err := etrogpolygonzkevm.NewEtrogpolygonzkevm(l1Config.ZkEVMAddr, ethClient)
 	if err != nil {
@@ -302,6 +318,7 @@ func NewClient(cfg Config, l1Config L1Config) (*Client, error) {
 		PreEtrogZkEVM:                 preEtrogZkevm,
 		EtrogRollupManager:            etrogRollupManager,
 		Pol:                           pol,
+		ZkBlob:                        zkBlob,
 		EtrogGlobalExitRootManager:    etrogGlobalExitRoot,
 		PreEtrogGlobalExitRootManager: preEtrogGlobalExitRoot,
 		SCAddresses:                   scAddresses,
@@ -310,10 +327,11 @@ func NewClient(cfg Config, l1Config L1Config) (*Client, error) {
 			MultiGasProvider: cfg.MultiGasProvider,
 			Providers:        gProviders,
 		},
-		l1Cfg:   l1Config,
-		cfg:     cfg,
-		auth:    map[common.Address]bind.TransactOpts{},
-		EIP4844: eip4844,
+		l1Cfg:    l1Config,
+		cfg:      cfg,
+		auth:     map[common.Address]bind.TransactOpts{},
+		authKeys: map[common.Address]*ecdsa.PrivateKey{},
+		EIP4844:  eip4844,
 	}
 	if feijoaEnabled {
 		eventFeijoaManager := NewEventManager(client, NewCallDataExtratorGeth(ethClient))
@@ -1040,6 +1058,54 @@ func (etherMan *Client) EstimateGasSequenceBatches(sender common.Address, sequen
 	}
 
 	return tx, nil
+}
+
+// BuildPostZkBlobTxData builds a []bytes to be sent to the PoE SC method PostZkBlob.
+func (etherMan *Client) BuildPostZkBlobTxData(sender common.Address, batchNumber int64, hashes []common.Hash) (to *common.Address, data []byte, err error) {
+	tree, err := blob.NewMerkleTree(mt.ModeProofGen, hashes...)
+	if err != nil {
+		return nil, nil, err
+	}
+	root := tree.Root
+	bytesPack, err := solidity.AbiPack([]string{"uint256", "bytes32"}, big.NewInt(int64(batchNumber)), common.BytesToHash(root))
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// get bytestosign
+	bytesToSign, err := solidity.Keccak256(bytesPack)
+	if err != nil {
+		panic(err)
+	}
+
+	sig, err := solidity.Sign(bytesToSign, etherMan.authKeys[sender]) // test authKeys
+	if err != nil {
+		panic(err)
+	}
+
+	opts, err := etherMan.getAuthByAddress(sender)
+	if err == ErrNotFound {
+		return nil, nil, fmt.Errorf("failed to build sequence batches, err: %w", ErrPrivateKeyNotFound)
+	}
+	opts.NoSend = true
+	// force nonce, gas limit and gas price to avoid querying it from the chain
+	opts.Nonce = big.NewInt(1)
+	opts.GasLimit = uint64(1)
+	opts.GasPrice = big.NewInt(1)
+
+	tx, err := etherMan.ZkBlob.PostBatch(&opts, big.NewInt(batchNumber), common.BytesToHash(root), sig)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Debug
+	log.Infof("-------------------------> debug post batch tx: %s\n", tx.Hash().Hex())
+	log.Infof("-------------------------> debug post batch hashes: \n")
+	for _, h := range hashes {
+		log.Infof("-------------------------> hash: %s\n", h.Hex())
+	}
+
+	return tx.To(), tx.Data(), nil
 }
 
 // BuildSequenceBatchesTxData builds a []bytes to be sent to the PoE SC method SequenceBatches.
@@ -1956,13 +2022,14 @@ func (etherMan *Client) AddOrReplaceAuth(auth bind.TransactOpts) error {
 
 // LoadAuthFromKeyStore loads an authorization from a key store file
 func (etherMan *Client) LoadAuthFromKeyStore(path, password string) (*bind.TransactOpts, error) {
-	auth, err := newAuthFromKeystore(path, password, etherMan.l1Cfg.L1ChainID)
+	auth, key, err := newAuthFromKeystore(path, password, etherMan.l1Cfg.L1ChainID)
 	if err != nil {
 		return nil, err
 	}
 
 	log.Infof("loaded authorization for address: %v", auth.From.String())
 	etherMan.auth[auth.From] = auth
+	etherMan.authKeys[auth.From] = key // test
 	return &auth, nil
 }
 
@@ -1984,20 +2051,20 @@ func newKeyFromKeystore(path, password string) (*keystore.Key, error) {
 }
 
 // newAuthFromKeystore an authorization instance from a keystore file
-func newAuthFromKeystore(path, password string, chainID uint64) (bind.TransactOpts, error) {
+func newAuthFromKeystore(path, password string, chainID uint64) (bind.TransactOpts, *ecdsa.PrivateKey, error) {
 	log.Infof("reading key from: %v", path)
 	key, err := newKeyFromKeystore(path, password)
 	if err != nil {
-		return bind.TransactOpts{}, err
+		return bind.TransactOpts{}, nil, err
 	}
 	if key == nil {
-		return bind.TransactOpts{}, nil
+		return bind.TransactOpts{}, nil, nil
 	}
 	auth, err := bind.NewKeyedTransactorWithChainID(key.PrivateKey, new(big.Int).SetUint64(chainID))
 	if err != nil {
-		return bind.TransactOpts{}, err
+		return bind.TransactOpts{}, nil, err
 	}
-	return *auth, nil
+	return *auth, key.PrivateKey, nil
 }
 
 // getAuthByAddress tries to get an authorization from the authorizations map
