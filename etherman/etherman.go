@@ -14,8 +14,6 @@ import (
 	"strings"
 	"time"
 
-	mt "github.com/txaty/go-merkletree"
-
 	beaconclient "github.com/0xPolygonHermez/zkevm-node/beacon_client"
 	"github.com/0xPolygonHermez/zkevm-node/blob"
 	"github.com/0xPolygonHermez/zkevm-node/blob/solidity"
@@ -1062,7 +1060,7 @@ func (etherMan *Client) EstimateGasSequenceBatches(sender common.Address, sequen
 
 // BuildPostZkBlobTxData builds a []bytes to be sent to the PoE SC method PostZkBlob.
 func (etherMan *Client) BuildPostZkBlobTxData(sender common.Address, batchNumber int64, hashes []common.Hash) (to *common.Address, data []byte, err error) {
-	tree, err := blob.NewMerkleTree(mt.ModeProofGen, hashes...)
+	tree, err := blob.NewMerkleTree(blob.ModeProofGen, hashes...)
 	if err != nil {
 		return nil, nil, err
 	}

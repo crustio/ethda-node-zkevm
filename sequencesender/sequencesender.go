@@ -203,35 +203,30 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context) {
 		return
 	}
 
-	// Send merkle root to ZkBlob
-	for _, sq := range sequences {
-		batch, err := s.state.GetBatchByNumber(ctx, sq.BatchNumber, nil)
-
-		if err == state.ErrNotFound {
-			// failed to get batch by number %d, err: %w", currentBatchNumToSequence, err)
-			log.Errorf("failed to get batch by number %d, err: %w ", sq.BatchNumber, err)
-			continue
-		} else if err != nil {
-			log.Errorf("error to add send hashes and merkle-tree root to zkblob: ", err)
-			continue
-		}
-		// all hashes
+	for _, seq := range sequences {
 		hashes := []common.Hash{}
-		for _, tx := range batch.Transactions {
-			hashes = append(hashes, tx.Hash())
+		forkID := s.state.GetForkIDByBatchNumber(seq.BatchNumber)
+		txs, _, _, err := state.DecodeTxs(seq.BatchL2Data, forkID)
+		if err != nil {
+			log.Infof("----------------------------------------------------- >>>>>>>> failed to decode batch %d, err: %v", seq.BatchNumber, err)
 		}
+
+		for _, ttx := range txs {
+			hashes = append(hashes, ttx.Hash())
+		}
+		log.Infof("====================================================== >>>>>>>> batch.Transactions bytes len: %d, batch number: %v, hashes: %v, hash count: %d, transaction: %v", len(seq.BatchL2Data), seq.BatchNumber, hashes, len(hashes), seq.BatchL2Data)
 
 		if len(hashes) == 0 {
 			continue
 		}
 
-		to, data, err := s.etherman.BuildPostZkBlobTxData(s.cfg.SenderAddress, int64(sq.BatchNumber), hashes)
+		to, data, err := s.etherman.BuildPostZkBlobTxData(s.cfg.SenderAddress, int64(seq.BatchNumber), hashes)
 		if err != nil {
-			log.Errorf("error build postZkBlob tx data, batch number: %d: %v", sq.BatchNumber, err)
+			log.Errorf("error build postZkBlob tx data, batch number: %d: %v", seq.BatchNumber, err)
 			continue
 		}
 
-		monitoredTxID := fmt.Sprintf(monitoredBatchIDFormat, sq.BatchNumber)
+		monitoredTxID := fmt.Sprintf(monitoredBatchIDFormat, seq.BatchNumber)
 		err = s.ethTxManager.Add(ctx, ethTxManagerOwner, monitoredTxID, s.cfg.SenderAddress, to, nil, data, s.cfg.GasOffset, nil)
 		if err != nil {
 			mTxLogger := ethtxmanager.CreateLogger(ethTxManagerOwner, monitoredTxID, s.cfg.SenderAddress, to)
@@ -277,8 +272,20 @@ func (s *SequenceSender) getSequencesToSend(ctx context.Context) ([]types.Sequen
 			return nil, err
 		}
 
+		// hhs := []common.Hash{}
+		// forkID := s.state.GetForkIDByBatchNumber(currentBatchNumToSequence)
+		// txs, _, _, err := state.DecodeTxs(batch.BatchL2Data, forkID)
+		// if err != nil {
+		// 	log.Infof("----------------------failed to decode batch %d, err: %v", batch.BatchNumber, err)
+		// }
+
+		// for _, ttx := range txs {
+		// 	hhs = append(hhs, ttx.Hash())
+		// }
+		// log.Infof("====================================================== >>>>>>>> batch.Transactions len: %d, %v, %v, %d", len(batch.Transactions), batch.BatchL2Data, hhs, forkID)
+
 		// Check if batch is closed and checked (sequencer sanity check was successful)
-		isChecked, err := s.state.IsBatchChecked(ctx, currentBatchNumToSequence, nil)
+		isChecked, err := s.state.IsBatchChecked(ctx, batch.BatchNumber, nil)
 		if err != nil {
 			log.Debugf("failed to check if batch %d is closed and checked, err: %w", currentBatchNumToSequence, err)
 			return nil, err

@@ -2,15 +2,18 @@ package jsonrpc
 
 import (
 	"crypto/ecdsa"
+	"errors"
+	"math/big"
+	"os"
+	"path/filepath"
+	"strings"
+
+	"github.com/0xPolygonHermez/zkevm-node/blob"
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
-	"math/big"
-	"os"
-	"path/filepath"
-	"strings"
 )
 
 const (
@@ -36,6 +39,46 @@ func NewETHDAEndpoints(skPath, skPassword string) *ETHDAEndpoints {
 	return &ETHDAEndpoints{
 		sk: key.PrivateKey,
 	}
+}
+
+type ProofResponse struct {
+	BatchNumber uint64
+	Proof       []common.Hash
+}
+
+func (e *ETHDAEndpoints) GetProofByHash(hash types.ArgHash) (interface{}, types.Error) {
+	batchNumber := 0 // TODO
+
+	hashes := []common.Hash{} // TODO
+
+	tree, err := blob.NewMerkleTree(blob.ModeProofGen, hashes...)
+	if err != nil {
+		return RPCErrorResponse(types.DefaultErrorCode, "failed create merkle tree by hashes", err, true)
+	}
+
+	res := &ProofResponse{
+		BatchNumber: uint64(batchNumber),
+		Proof:       []common.Hash{},
+	}
+
+	hashIndex := -1
+	leafs := tree.Leaves
+	for i := 0; i < len(leafs); i++ {
+		if hash.Hash() == common.BytesToHash(leafs[i]) {
+			hashIndex = i
+		}
+	}
+
+	if hashIndex == -1 { // hash not found
+		errStr := "hash not found: " + hash.Hash().Hex()
+		return RPCErrorResponse(types.DefaultErrorCode, errStr, errors.New(errStr), true)
+	}
+
+	for _, h := range tree.Proofs[hashIndex].Siblings {
+		res.Proof = append(res.Proof, common.BytesToHash(h))
+	}
+
+	return res, nil
 }
 
 func (e *ETHDAEndpoints) SignBatchHash(hash types.ArgHash) (interface{}, types.Error) {

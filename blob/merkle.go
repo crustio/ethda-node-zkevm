@@ -9,6 +9,16 @@ import (
 	mt "github.com/txaty/go-merkletree"
 )
 
+// Mode from mt.TypeConfigMode
+const (
+	// ModeProofGen is the proof generation configuration mode.
+	ModeProofGen mt.TypeConfigMode = iota
+	// ModeTreeBuild is the tree building configuration mode.
+	ModeTreeBuild
+	// ModeProofGenAndTreeBuild is the proof generation and tree building configuration mode.
+	ModeProofGenAndTreeBuild
+)
+
 type dataBlock struct {
 	value common.Hash
 }
