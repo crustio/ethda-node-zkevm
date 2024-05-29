@@ -19,6 +19,11 @@ const (
 	ModeProofGenAndTreeBuild
 )
 
+type ProofInfo struct {
+	BatchNumber uint64        `json:"batch_number"`
+	Proof       []common.Hash `json:"proof"`
+}
+
 type dataBlock struct {
 	value common.Hash
 }

@@ -273,15 +273,8 @@ func (s *SequenceSender) getSequencesToSend(ctx context.Context) ([]types.Sequen
 			return nil, err
 		}
 
-		hashes := []common.Hash{}
-		for _, bt := range batch.Transactions {
-			hashes = append(hashes, bt.Hash())
-		}
-
-		log.Infof("internal >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> %d, %v", len(hashes), hashes)
-
 		// Check if batch is closed and checked (sequencer sanity check was successful)
-		isChecked, err := s.state.IsBatchChecked(ctx, batch.BatchNumber, nil)
+		isChecked, err := s.state.IsBatchChecked(ctx, currentBatchNumToSequence, nil)
 		if err != nil {
 			log.Debugf("failed to check if batch %d is closed and checked, err: %w", currentBatchNumToSequence, err)
 			return nil, err

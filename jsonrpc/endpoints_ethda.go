@@ -1,8 +1,10 @@
 package jsonrpc
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"errors"
+	"fmt"
 	"math/big"
 	"os"
 	"path/filepath"
@@ -11,9 +13,11 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/blob"
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
+	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/jackc/pgx/v4"
 )
 
 const (
@@ -22,11 +26,13 @@ const (
 
 // ETHDAEndpoints contains implementations for the "ethda" RPC endpoints
 type ETHDAEndpoints struct {
-	sk *ecdsa.PrivateKey
+	sk    *ecdsa.PrivateKey
+	state types.StateInterface
+	txMan DBTxManager
 }
 
 // NewETHDAEndpoints returns ETHDAEndpoints
-func NewETHDAEndpoints(skPath, skPassword string) *ETHDAEndpoints {
+func NewETHDAEndpoints(skPath, skPassword string, st types.StateInterface) *ETHDAEndpoints {
 	keystoreEncrypted, err := os.ReadFile(filepath.Clean(skPath))
 	if err != nil {
 		panic(err)
@@ -37,26 +43,58 @@ func NewETHDAEndpoints(skPath, skPassword string) *ETHDAEndpoints {
 	}
 
 	return &ETHDAEndpoints{
-		sk: key.PrivateKey,
+		sk:    key.PrivateKey,
+		state: st,
 	}
-}
-
-type ProofResponse struct {
-	BatchNumber uint64
-	Proof       []common.Hash
 }
 
 func (e *ETHDAEndpoints) GetProofByHash(hash types.ArgHash) (interface{}, types.Error) {
-	batchNumber := 0 // TODO
+	batchPtr, err := e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, types.Error) {
+		receipt, err := e.state.GetTransactionReceipt(ctx, hash.Hash(), dbTx)
+		if err != nil {
+			return RPCErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't load receipt for tx %v", hash.Hash().String()), err, true)
+		}
 
-	hashes := []common.Hash{} // TODO
+		batch, err := e.state.GetBatchByL2BlockNumber(ctx, receipt.BlockNumber.Uint64(), dbTx)
+		if err != nil {
+			return RPCErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't load batch for tx %v", hash.Hash().String()), err, true)
+		}
 
-	tree, err := blob.NewMerkleTree(blob.ModeProofGen, hashes...)
+		return batch, nil
+	})
 	if err != nil {
-		return RPCErrorResponse(types.DefaultErrorCode, "failed create merkle tree by hashes", err, true)
+		return RPCErrorResponse(types.DefaultErrorCode, "failed to get batch by hash", err, true)
 	}
 
-	res := &ProofResponse{
+	batch, ok := batchPtr.(*state.Batch)
+	if !ok {
+		return RPCErrorResponse(types.DefaultErrorCode, "batchInterface type assert failed", errors.New("batchInterface type assert failed"), true)
+	}
+
+	batchNumber := uint64(batch.BatchNumber)
+
+	hashes := []common.Hash{}
+	brb, er := state.DecodeBatchV2(batch.BatchL2Data)
+	if er != nil {
+		return RPCErrorResponse(types.DefaultErrorCode, "error decode BatchL2Data", er, true)
+	}
+
+	for _, btx := range brb.Blocks {
+		for _, tx := range btx.Transactions {
+			hashes = append(hashes, tx.Tx.Hash())
+		}
+	}
+
+	if len(hashes) == 0 {
+		return RPCErrorResponse(types.DefaultErrorCode, "no hashes in batch", errors.New("no hashes in batch"), true)
+	}
+
+	tree, er := blob.NewMerkleTree(blob.ModeProofGen, hashes...)
+	if er != nil {
+		return RPCErrorResponse(types.DefaultErrorCode, "failed create merkle tree by hashes", er, true)
+	}
+
+	proof := &blob.ProofInfo{
 		BatchNumber: uint64(batchNumber),
 		Proof:       []common.Hash{},
 	}
@@ -75,10 +113,12 @@ func (e *ETHDAEndpoints) GetProofByHash(hash types.ArgHash) (interface{}, types.
 	}
 
 	for _, h := range tree.Proofs[hashIndex].Siblings {
-		res.Proof = append(res.Proof, common.BytesToHash(h))
+		proof.Proof = append(proof.Proof, common.BytesToHash(h))
 	}
 
-	return res, nil
+	log.Debugf("get proof of batch number: %d, result hash: %s, result proof: %v", batchNumber, hash.Hash().Hex(), proof.Proof)
+
+	return proof, nil
 }
 
 func (e *ETHDAEndpoints) SignBatchHash(hash types.ArgHash) (interface{}, types.Error) {
