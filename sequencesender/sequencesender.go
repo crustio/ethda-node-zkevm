@@ -203,18 +203,19 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context) {
 		return
 	}
 
+	// ZkBlob tx post-processing
 	for _, seq := range sequences {
 		hashes := []common.Hash{}
-		forkID := s.state.GetForkIDByBatchNumber(seq.BatchNumber)
-		txs, _, _, err := state.DecodeTxs(seq.BatchL2Data, forkID)
+		brb, err := state.DecodeBatchV2(seq.BatchL2Data)
 		if err != nil {
-			log.Infof("----------------------------------------------------- >>>>>>>> failed to decode batch %d, err: %v", seq.BatchNumber, err)
+			log.Errorf("error decode BatchL2Data for batch %d, err: %v", seq.BatchNumber, err)
 		}
 
-		for _, ttx := range txs {
-			hashes = append(hashes, ttx.Hash())
+		for _, btx := range brb.Blocks {
+			for _, tx := range btx.Transactions {
+				hashes = append(hashes, tx.Tx.Hash())
+			}
 		}
-		log.Infof("====================================================== >>>>>>>> batch.Transactions bytes len: %d, batch number: %v, hashes: %v, hash count: %d, transaction: %v", len(seq.BatchL2Data), seq.BatchNumber, hashes, len(hashes), seq.BatchL2Data)
 
 		if len(hashes) == 0 {
 			continue
@@ -272,17 +273,12 @@ func (s *SequenceSender) getSequencesToSend(ctx context.Context) ([]types.Sequen
 			return nil, err
 		}
 
-		// hhs := []common.Hash{}
-		// forkID := s.state.GetForkIDByBatchNumber(currentBatchNumToSequence)
-		// txs, _, _, err := state.DecodeTxs(batch.BatchL2Data, forkID)
-		// if err != nil {
-		// 	log.Infof("----------------------failed to decode batch %d, err: %v", batch.BatchNumber, err)
-		// }
+		hashes := []common.Hash{}
+		for _, bt := range batch.Transactions {
+			hashes = append(hashes, bt.Hash())
+		}
 
-		// for _, ttx := range txs {
-		// 	hhs = append(hhs, ttx.Hash())
-		// }
-		// log.Infof("====================================================== >>>>>>>> batch.Transactions len: %d, %v, %v, %d", len(batch.Transactions), batch.BatchL2Data, hhs, forkID)
+		log.Infof("internal >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> %d, %v", len(hashes), hashes)
 
 		// Check if batch is closed and checked (sequencer sanity check was successful)
 		isChecked, err := s.state.IsBatchChecked(ctx, batch.BatchNumber, nil)

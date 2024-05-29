@@ -240,7 +240,7 @@ func NewClient(cfg Config, l1Config L1Config) (*Client, error) {
 		feijoaEnabled = false
 	}
 	// Create zkblob client
-	zkBlob, err := zkblob.NewZkblob(l1Config.ZkEVMAddr, ethClient)
+	zkBlob, err := zkblob.NewZkblob(l1Config.ZkBlobAddr, ethClient)
 	if err != nil {
 		log.Errorf("error creating Polygonzkblob client (%s). Error: %w", l1Config.ZkBlobAddr.String(), err)
 		return nil, err
@@ -1062,28 +1062,28 @@ func (etherMan *Client) EstimateGasSequenceBatches(sender common.Address, sequen
 func (etherMan *Client) BuildPostZkBlobTxData(sender common.Address, batchNumber int64, hashes []common.Hash) (to *common.Address, data []byte, err error) {
 	tree, err := blob.NewMerkleTree(blob.ModeProofGen, hashes...)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("failed to create merkle tree: %s", err.Error())
 	}
 	root := tree.Root
 	bytesPack, err := solidity.AbiPack([]string{"uint256", "bytes32"}, big.NewInt(int64(batchNumber)), common.BytesToHash(root))
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("failed to AbiPack batchNumber and root: %s", err.Error())
 	}
 
 	// get bytestosign
 	bytesToSign, err := solidity.Keccak256(bytesPack)
 	if err != nil {
-		panic(err)
+		return nil, nil, fmt.Errorf("failed to Keccak256 batchNumber and root: %s", err.Error())
 	}
 
 	sig, err := solidity.Sign(bytesToSign, etherMan.authKeys[sender]) // test authKeys
 	if err != nil {
-		panic(err)
+		return nil, nil, fmt.Errorf("failed to Sign batchNumber and root: %s", err.Error())
 	}
 
 	opts, err := etherMan.getAuthByAddress(sender)
 	if err == ErrNotFound {
-		return nil, nil, fmt.Errorf("failed to build sequence batches, err: %w", ErrPrivateKeyNotFound)
+		return nil, nil, err
 	}
 	opts.NoSend = true
 	// force nonce, gas limit and gas price to avoid querying it from the chain
@@ -1096,12 +1096,8 @@ func (etherMan *Client) BuildPostZkBlobTxData(sender common.Address, batchNumber
 		return nil, nil, err
 	}
 
-	// Debug
-	log.Infof("-------------------------> debug post batch tx: %s\n", tx.Hash().Hex())
-	log.Infof("-------------------------> debug post batch hashes: \n")
-	for _, h := range hashes {
-		log.Infof("-------------------------> hash: %s\n", h.Hex())
-	}
+	// log
+	log.Infof("Build Batch PostZkBlob transaction, batch number: %d, transaction hashes: %v, to contract address: %s", batchNumber, hashes, tx.To().String())
 
 	return tx.To(), tx.Data(), nil
 }

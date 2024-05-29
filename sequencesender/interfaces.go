@@ -26,7 +26,6 @@ type etherman interface {
 
 // stateInterface gathers the methods required to interact with the state.
 type stateInterface interface {
-	GetForkIDByBatchNumber(batchNumber uint64) uint64
 	GetLastVirtualBatchNum(ctx context.Context, dbTx pgx.Tx) (uint64, error)
 	IsBatchClosed(ctx context.Context, batchNum uint64, dbTx pgx.Tx) (bool, error)
 	IsBatchChecked(ctx context.Context, batchNum uint64, dbTx pgx.Tx) (bool, error)
