@@ -19,6 +19,45 @@ type EthermanMock struct {
 	mock.Mock
 }
 
+// BuildPostZkBlobTxData provides a mock function with given fields: sender, batchNumber, hashes
+func (_m *EthermanMock) BuildPostZkBlobTxData(sender common.Address, batchNumber int64, hashes []common.Hash) (*common.Address, []byte, error) {
+	ret := _m.Called(sender, batchNumber, hashes)
+
+	if len(ret) == 0 {
+		panic("no return value specified for BuildPostZkBlobTxData")
+	}
+
+	var r0 *common.Address
+	var r1 []byte
+	var r2 error
+	if rf, ok := ret.Get(0).(func(common.Address, int64, []common.Hash) (*common.Address, []byte, error)); ok {
+		return rf(sender, batchNumber, hashes)
+	}
+	if rf, ok := ret.Get(0).(func(common.Address, int64, []common.Hash) *common.Address); ok {
+		r0 = rf(sender, batchNumber, hashes)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*common.Address)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(common.Address, int64, []common.Hash) []byte); ok {
+		r1 = rf(sender, batchNumber, hashes)
+	} else {
+		if ret.Get(1) != nil {
+			r1 = ret.Get(1).([]byte)
+		}
+	}
+
+	if rf, ok := ret.Get(2).(func(common.Address, int64, []common.Hash) error); ok {
+		r2 = rf(sender, batchNumber, hashes)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
+}
+
 // BuildSequenceBatchesTxData provides a mock function with given fields: sender, sequences, maxSequenceTimestamp, initSequenceBatchNumber, l2Coinbase
 func (_m *EthermanMock) BuildSequenceBatchesTxData(sender common.Address, sequences []types.Sequence, maxSequenceTimestamp uint64, initSequenceBatchNumber uint64, l2Coinbase common.Address) (*common.Address, []byte, error) {
 	ret := _m.Called(sender, sequences, maxSequenceTimestamp, initSequenceBatchNumber, l2Coinbase)

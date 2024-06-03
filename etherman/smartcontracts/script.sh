@@ -23,3 +23,4 @@ gen feijoapolygonzkevm
 gen feijoapolygonzkevmglobalexitroot
 gen feijoapolygonrollupmanager
 gen mockfeijoapolygonrollupmanager
+gen zkblob
