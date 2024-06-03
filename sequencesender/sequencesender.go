@@ -6,23 +6,22 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/blob/zkblob"
 	ethman "github.com/0xPolygonHermez/zkevm-node/etherman"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/types"
 	"github.com/0xPolygonHermez/zkevm-node/ethtxmanager"
 	"github.com/0xPolygonHermez/zkevm-node/event"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
-	"github.com/ethereum/go-ethereum/common"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/jackc/pgx/v4"
 )
 
 const (
-	ethTxManagerOwner      = "sequencer"
-	monitoredIDFormat      = "sequence-from-%v-to-%v"
-	monitoredBatchIDFormat = "batch-%v"
-	retriesSanityCheck     = 8
-	waitRetrySanityCheck   = 15 * time.Second
+	ethTxManagerOwner    = "sequencer"
+	monitoredIDFormat    = "sequence-from-%v-to-%v"
+	retriesSanityCheck   = 8
+	waitRetrySanityCheck = 15 * time.Second
 )
 
 var (
@@ -204,37 +203,7 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context) {
 	}
 
 	// ZkBlob tx post-processing
-	for _, seq := range sequences {
-		hashes := []common.Hash{}
-		brb, err := state.DecodeBatchV2(seq.BatchL2Data)
-		if err != nil {
-			log.Errorf("error decode BatchL2Data for batch %d, err: %v", seq.BatchNumber, err)
-		}
-
-		for _, btx := range brb.Blocks {
-			for _, tx := range btx.Transactions {
-				hashes = append(hashes, tx.Tx.Hash())
-			}
-		}
-
-		if len(hashes) == 0 {
-			continue
-		}
-
-		to, data, err := s.etherman.BuildPostZkBlobTxData(s.cfg.SenderAddress, int64(seq.BatchNumber), hashes)
-		if err != nil {
-			log.Errorf("error build postZkBlob tx data, batch number: %d: %v", seq.BatchNumber, err)
-			continue
-		}
-
-		monitoredTxID := fmt.Sprintf(monitoredBatchIDFormat, seq.BatchNumber)
-		err = s.ethTxManager.Add(ctx, ethTxManagerOwner, monitoredTxID, s.cfg.SenderAddress, to, nil, data, s.cfg.GasOffset, nil)
-		if err != nil {
-			mTxLogger := ethtxmanager.CreateLogger(ethTxManagerOwner, monitoredTxID, s.cfg.SenderAddress, to)
-			mTxLogger.Errorf("error to add postZkBlob tx to eth tx manager: ", err)
-			continue
-		}
-	}
+	zkblob.HandleSequenceToZkBlob(ctx, sequences, ethTxManagerOwner, s.cfg.SenderAddress, s.etherman, s.ethTxManager, s.cfg.GasOffset)
 }
 
 // getSequencesToSend generates an array of sequences to be send to L1.
