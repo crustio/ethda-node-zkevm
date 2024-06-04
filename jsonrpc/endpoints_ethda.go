@@ -17,7 +17,6 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/jackc/pgx/v4"
 )
 
 const (
@@ -28,7 +27,6 @@ const (
 type ETHDAEndpoints struct {
 	sk    *ecdsa.PrivateKey
 	state types.StateInterface
-	txMan DBTxManager
 }
 
 // NewETHDAEndpoints returns ETHDAEndpoints
@@ -49,26 +47,16 @@ func NewETHDAEndpoints(skPath, skPassword string, st types.StateInterface) *ETHD
 }
 
 func (e *ETHDAEndpoints) GetProofByHash(hash types.ArgHash) (interface{}, types.Error) {
-	batchPtr, err := e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, types.Error) {
-		receipt, err := e.state.GetTransactionReceipt(ctx, hash.Hash(), dbTx)
-		if err != nil {
-			return RPCErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't load receipt for tx %v", hash.Hash().String()), err, true)
-		}
+	ctx := context.Background()
 
-		batch, err := e.state.GetBatchByL2BlockNumber(ctx, receipt.BlockNumber.Uint64(), dbTx)
-		if err != nil {
-			return RPCErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't load batch for tx %v", hash.Hash().String()), err, true)
-		}
-
-		return batch, nil
-	})
+	receipt, err := e.state.GetTransactionReceipt(ctx, hash.Hash(), nil)
 	if err != nil {
-		return RPCErrorResponse(types.DefaultErrorCode, "failed to get batch by hash", err, true)
+		return RPCErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't load receipt for tx %v", hash.Hash().String()), err, true)
 	}
 
-	batch, ok := batchPtr.(*state.Batch)
-	if !ok {
-		return RPCErrorResponse(types.DefaultErrorCode, "batchInterface type assert failed", errors.New("batchInterface type assert failed"), true)
+	batch, err := e.state.GetBatchByL2BlockNumber(ctx, receipt.BlockNumber.Uint64(), nil)
+	if err != nil {
+		return RPCErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't load batch for tx %v", hash.Hash().String()), err, true)
 	}
 
 	batchNumber := uint64(batch.BatchNumber)
