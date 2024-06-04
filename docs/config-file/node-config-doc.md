@@ -1465,26 +1465,26 @@ L1SyncCheckL2BlockNumberModulus=600
 
 | Property                                                                     | Pattern | Type             | Deprecated | Definition | Title/Description                                                                                                                                                                                                                                       |
 | ---------------------------------------------------------------------------- | ------- | ---------------- | ---------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| - [Enable](#Synchronizer_L1BlockCheck_Enable )                               | No      | boolean          | No         | -          | Enable if is true then the check l1 Block Hash is active                                                                                                                                                                                                |
+| - [Enabled](#Synchronizer_L1BlockCheck_Enabled )                             | No      | boolean          | No         | -          | If enabled then the check l1 Block Hash is active                                                                                                                                                                                                       |
 | - [L1SafeBlockPoint](#Synchronizer_L1BlockCheck_L1SafeBlockPoint )           | No      | enum (of string) | No         | -          | L1SafeBlockPoint is the point that a block is considered safe enough to be checked<br />it can be: finalized, safe,pending or latest                                                                                                                    |
 | - [L1SafeBlockOffset](#Synchronizer_L1BlockCheck_L1SafeBlockOffset )         | No      | integer          | No         | -          | L1SafeBlockOffset is the offset to add to L1SafeBlockPoint as a safe point<br />it can be positive or negative<br />Example: L1SafeBlockPoint= finalized, L1SafeBlockOffset= -10, then the safe block ten blocks before the finalized block             |
 | - [ForceCheckBeforeStart](#Synchronizer_L1BlockCheck_ForceCheckBeforeStart ) | No      | boolean          | No         | -          | ForceCheckBeforeStart if is true then the first time the system is started it will force to check all pending blocks                                                                                                                                    |
-| - [PreCheckEnable](#Synchronizer_L1BlockCheck_PreCheckEnable )               | No      | boolean          | No         | -          | PreCheckEnable if is true then the pre-check is active, will check blocks between L1SafeBlock and L1PreSafeBlock                                                                                                                                        |
+| - [PreCheckEnabled](#Synchronizer_L1BlockCheck_PreCheckEnabled )             | No      | boolean          | No         | -          | If enabled then the pre-check is active, will check blocks between L1SafeBlock and L1PreSafeBlock                                                                                                                                                       |
 | - [L1PreSafeBlockPoint](#Synchronizer_L1BlockCheck_L1PreSafeBlockPoint )     | No      | enum (of string) | No         | -          | L1PreSafeBlockPoint is the point that a block is considered safe enough to be checked<br />it can be: finalized, safe,pending or latest                                                                                                                 |
 | - [L1PreSafeBlockOffset](#Synchronizer_L1BlockCheck_L1PreSafeBlockOffset )   | No      | integer          | No         | -          | L1PreSafeBlockOffset is the offset to add to L1PreSafeBlockPoint as a safe point<br />it can be positive or negative<br />Example: L1PreSafeBlockPoint= finalized, L1PreSafeBlockOffset= -10, then the safe block ten blocks before the finalized block |
 
-#### <a name="Synchronizer_L1BlockCheck_Enable"></a>9.7.1. `Synchronizer.L1BlockCheck.Enable`
+#### <a name="Synchronizer_L1BlockCheck_Enabled"></a>9.7.1. `Synchronizer.L1BlockCheck.Enabled`
 
 **Type:** : `boolean`
 
 **Default:** `true`
 
-**Description:** Enable if is true then the check l1 Block Hash is active
+**Description:** If enabled then the check l1 Block Hash is active
 
 **Example setting the default value** (true):
 ```
 [Synchronizer.L1BlockCheck]
-Enable=true
+Enabled=true
 ```
 
 #### <a name="Synchronizer_L1BlockCheck_L1SafeBlockPoint"></a>9.7.2. `Synchronizer.L1BlockCheck.L1SafeBlockPoint`
@@ -1537,18 +1537,18 @@ L1SafeBlockOffset=0
 ForceCheckBeforeStart=true
 ```
 
-#### <a name="Synchronizer_L1BlockCheck_PreCheckEnable"></a>9.7.5. `Synchronizer.L1BlockCheck.PreCheckEnable`
+#### <a name="Synchronizer_L1BlockCheck_PreCheckEnabled"></a>9.7.5. `Synchronizer.L1BlockCheck.PreCheckEnabled`
 
 **Type:** : `boolean`
 
 **Default:** `true`
 
-**Description:** PreCheckEnable if is true then the pre-check is active, will check blocks between L1SafeBlock and L1PreSafeBlock
+**Description:** If enabled then the pre-check is active, will check blocks between L1SafeBlock and L1PreSafeBlock
 
 **Example setting the default value** (true):
 ```
 [Synchronizer.L1BlockCheck]
-PreCheckEnable=true
+PreCheckEnabled=true
 ```
 
 #### <a name="Synchronizer_L1BlockCheck_L1PreSafeBlockPoint"></a>9.7.6. `Synchronizer.L1BlockCheck.L1PreSafeBlockPoint`
@@ -1875,11 +1875,26 @@ FallbackToSequentialModeOnSynchronized=false
 
 | Property                                                                                                | Pattern | Type    | Deprecated | Definition | Title/Description                                                                                                                                                   |
 | ------------------------------------------------------------------------------------------------------- | ------- | ------- | ---------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| - [Enabled](#Synchronizer_L2Synchronization_Enabled )                                                   | No      | boolean | No         | -          | If enabled then the L2 sync process is permitted (only for permissionless)                                                                                          |
 | - [AcceptEmptyClosedBatches](#Synchronizer_L2Synchronization_AcceptEmptyClosedBatches )                 | No      | boolean | No         | -          | AcceptEmptyClosedBatches is a flag to enable or disable the acceptance of empty batches.<br />if true, the synchronizer will accept empty batches and process them. |
 | - [ReprocessFullBatchOnClose](#Synchronizer_L2Synchronization_ReprocessFullBatchOnClose )               | No      | boolean | No         | -          | ReprocessFullBatchOnClose if is true when a batch is closed is force to reprocess again                                                                             |
 | - [CheckLastL2BlockHashOnCloseBatch](#Synchronizer_L2Synchronization_CheckLastL2BlockHashOnCloseBatch ) | No      | boolean | No         | -          | CheckLastL2BlockHashOnCloseBatch if is true when a batch is closed is force to check the last L2Block hash                                                          |
 
-#### <a name="Synchronizer_L2Synchronization_AcceptEmptyClosedBatches"></a>9.10.1. `Synchronizer.L2Synchronization.AcceptEmptyClosedBatches`
+#### <a name="Synchronizer_L2Synchronization_Enabled"></a>9.10.1. `Synchronizer.L2Synchronization.Enabled`
+
+**Type:** : `boolean`
+
+**Default:** `true`
+
+**Description:** If enabled then the L2 sync process is permitted (only for permissionless)
+
+**Example setting the default value** (true):
+```
+[Synchronizer.L2Synchronization]
+Enabled=true
+```
+
+#### <a name="Synchronizer_L2Synchronization_AcceptEmptyClosedBatches"></a>9.10.2. `Synchronizer.L2Synchronization.AcceptEmptyClosedBatches`
 
 **Type:** : `boolean`
 
@@ -1894,7 +1909,7 @@ if true, the synchronizer will accept empty batches and process them.
 AcceptEmptyClosedBatches=false
 ```
 
-#### <a name="Synchronizer_L2Synchronization_ReprocessFullBatchOnClose"></a>9.10.2. `Synchronizer.L2Synchronization.ReprocessFullBatchOnClose`
+#### <a name="Synchronizer_L2Synchronization_ReprocessFullBatchOnClose"></a>9.10.3. `Synchronizer.L2Synchronization.ReprocessFullBatchOnClose`
 
 **Type:** : `boolean`
 
@@ -1908,7 +1923,7 @@ AcceptEmptyClosedBatches=false
 ReprocessFullBatchOnClose=true
 ```
 
-#### <a name="Synchronizer_L2Synchronization_CheckLastL2BlockHashOnCloseBatch"></a>9.10.3. `Synchronizer.L2Synchronization.CheckLastL2BlockHashOnCloseBatch`
+#### <a name="Synchronizer_L2Synchronization_CheckLastL2BlockHashOnCloseBatch"></a>9.10.4. `Synchronizer.L2Synchronization.CheckLastL2BlockHashOnCloseBatch`
 
 **Type:** : `boolean`
 
@@ -2098,6 +2113,7 @@ StateConsistencyCheckInterval="5s"
 | - [L1InfoTreeCheckInterval](#Sequencer_Finalizer_L1InfoTreeCheckInterval )                     | No      | string  | No         | -          | Duration                                                                                                                                                                                                      |
 | - [BatchMaxDeltaTimestamp](#Sequencer_Finalizer_BatchMaxDeltaTimestamp )                       | No      | string  | No         | -          | Duration                                                                                                                                                                                                      |
 | - [L2BlockMaxDeltaTimestamp](#Sequencer_Finalizer_L2BlockMaxDeltaTimestamp )                   | No      | string  | No         | -          | Duration                                                                                                                                                                                                      |
+| - [StateRootSyncInterval](#Sequencer_Finalizer_StateRootSyncInterval )                         | No      | string  | No         | -          | Duration                                                                                                                                                                                                      |
 | - [HaltOnBatchNumber](#Sequencer_Finalizer_HaltOnBatchNumber )                                 | No      | integer | No         | -          | HaltOnBatchNumber specifies the batch number where the Sequencer will stop to process more transactions and generate new batches.<br />The Sequencer will halt after it closes the batch equal to this number |
 | - [SequentialBatchSanityCheck](#Sequencer_Finalizer_SequentialBatchSanityCheck )               | No      | boolean | No         | -          | SequentialBatchSanityCheck indicates if the reprocess of a closed batch (sanity check) must be done in a<br />sequential way (instead than in parallel)                                                       |
 | - [SequentialProcessL2Block](#Sequencer_Finalizer_SequentialProcessL2Block )                   | No      | boolean | No         | -          | SequentialProcessL2Block indicates if the processing of a L2 Block must be done in the same finalizer go func instead<br />in the processPendingL2Blocks go func                                              |
@@ -2231,7 +2247,7 @@ ForcedBatchesCheckInterval="10s"
 
 **Default:** `"10s"`
 
-**Description:** L1InfoTreeCheckInterval is the wait time to check if the L1InfoRoot has been updated
+**Description:** L1InfoTreeCheckInterval is the time interval to check if the L1InfoRoot has been updated
 
 **Examples:** 
 
@@ -2255,7 +2271,7 @@ L1InfoTreeCheckInterval="10s"
 
 **Type:** : `string`
 
-**Default:** `"10s"`
+**Default:** `"30m0s"`
 
 **Description:** BatchMaxDeltaTimestamp is the resolution of the timestamp used to close a batch
 
@@ -2269,10 +2285,10 @@ L1InfoTreeCheckInterval="10s"
 "300ms"
 ```
 
-**Example setting the default value** ("10s"):
+**Example setting the default value** ("30m0s"):
 ```
 [Sequencer.Finalizer]
-BatchMaxDeltaTimestamp="10s"
+BatchMaxDeltaTimestamp="30m0s"
 ```
 
 #### <a name="Sequencer_Finalizer_L2BlockMaxDeltaTimestamp"></a>10.7.9. `Sequencer.Finalizer.L2BlockMaxDeltaTimestamp`
@@ -2301,7 +2317,34 @@ BatchMaxDeltaTimestamp="10s"
 L2BlockMaxDeltaTimestamp="3s"
 ```
 
-#### <a name="Sequencer_Finalizer_HaltOnBatchNumber"></a>10.7.10. `Sequencer.Finalizer.HaltOnBatchNumber`
+#### <a name="Sequencer_Finalizer_StateRootSyncInterval"></a>10.7.10. `Sequencer.Finalizer.StateRootSyncInterval`
+
+**Title:** Duration
+
+**Type:** : `string`
+
+**Default:** `"1h0m0s"`
+
+**Description:** StateRootSyncInterval indicates how often the stateroot generated by the L2 block process will be synchronized with
+the stateroot used in the tx-by-tx execution
+
+**Examples:** 
+
+```json
+"1m"
+```
+
+```json
+"300ms"
+```
+
+**Example setting the default value** ("1h0m0s"):
+```
+[Sequencer.Finalizer]
+StateRootSyncInterval="1h0m0s"
+```
+
+#### <a name="Sequencer_Finalizer_HaltOnBatchNumber"></a>10.7.11. `Sequencer.Finalizer.HaltOnBatchNumber`
 
 **Type:** : `integer`
 
@@ -2316,7 +2359,7 @@ The Sequencer will halt after it closes the batch equal to this number
 HaltOnBatchNumber=0
 ```
 
-#### <a name="Sequencer_Finalizer_SequentialBatchSanityCheck"></a>10.7.11. `Sequencer.Finalizer.SequentialBatchSanityCheck`
+#### <a name="Sequencer_Finalizer_SequentialBatchSanityCheck"></a>10.7.12. `Sequencer.Finalizer.SequentialBatchSanityCheck`
 
 **Type:** : `boolean`
 
@@ -2331,22 +2374,22 @@ sequential way (instead than in parallel)
 SequentialBatchSanityCheck=false
 ```
 
-#### <a name="Sequencer_Finalizer_SequentialProcessL2Block"></a>10.7.12. `Sequencer.Finalizer.SequentialProcessL2Block`
+#### <a name="Sequencer_Finalizer_SequentialProcessL2Block"></a>10.7.13. `Sequencer.Finalizer.SequentialProcessL2Block`
 
 **Type:** : `boolean`
 
-**Default:** `true`
+**Default:** `false`
 
 **Description:** SequentialProcessL2Block indicates if the processing of a L2 Block must be done in the same finalizer go func instead
 in the processPendingL2Blocks go func
 
-**Example setting the default value** (true):
+**Example setting the default value** (false):
 ```
 [Sequencer.Finalizer]
-SequentialProcessL2Block=true
+SequentialProcessL2Block=false
 ```
 
-#### <a name="Sequencer_Finalizer_Metrics"></a>10.7.13. `[Sequencer.Finalizer.Metrics]`
+#### <a name="Sequencer_Finalizer_Metrics"></a>10.7.14. `[Sequencer.Finalizer.Metrics]`
 
 **Type:** : `object`
 **Description:** Metrics is the config for the sequencer metrics
@@ -2356,7 +2399,7 @@ SequentialProcessL2Block=true
 | - [Interval](#Sequencer_Finalizer_Metrics_Interval )   | No      | string  | No         | -          | Duration                                           |
 | - [EnableLog](#Sequencer_Finalizer_Metrics_EnableLog ) | No      | boolean | No         | -          | EnableLog is a flag to enable/disable metrics logs |
 
-##### <a name="Sequencer_Finalizer_Metrics_Interval"></a>10.7.13.1. `Sequencer.Finalizer.Metrics.Interval`
+##### <a name="Sequencer_Finalizer_Metrics_Interval"></a>10.7.14.1. `Sequencer.Finalizer.Metrics.Interval`
 
 **Title:** Duration
 
@@ -2382,7 +2425,7 @@ SequentialProcessL2Block=true
 Interval="1h0m0s"
 ```
 
-##### <a name="Sequencer_Finalizer_Metrics_EnableLog"></a>10.7.13.2. `Sequencer.Finalizer.Metrics.EnableLog`
+##### <a name="Sequencer_Finalizer_Metrics_EnableLog"></a>10.7.14.2. `Sequencer.Finalizer.Metrics.EnableLog`
 
 **Type:** : `boolean`
 
@@ -2563,6 +2606,7 @@ UpgradeEtrogBatchNumber=0
 | - [PrivateKey](#SequenceSender_PrivateKey )                                                             | No      | object           | No         | -          | PrivateKey defines all the key store files that are going<br />to be read in order to provide the private keys to sign the L1 txs                                                                                                                                                                                                                                                                                             |
 | - [ForkUpgradeBatchNumber](#SequenceSender_ForkUpgradeBatchNumber )                                     | No      | integer          | No         | -          | Batch number where there is a forkid change (fork upgrade)                                                                                                                                                                                                                                                                                                                                                                    |
 | - [GasOffset](#SequenceSender_GasOffset )                                                               | No      | integer          | No         | -          | GasOffset is the amount of gas to be added to the gas estimation in order<br />to provide an amount that is higher than the estimated one. This is used<br />to avoid the TX getting reverted in case something has changed in the network<br />state after the estimation which can cause the TX to require more gas to be<br />executed.<br /><br />ex:<br />gas estimation: 1000<br />gas offset: 100<br />final gas: 1100 |
+| - [SequenceL1BlockConfirmations](#SequenceSender_SequenceL1BlockConfirmations )                         | No      | integer          | No         | -          | SequenceL1BlockConfirmations is number of blocks to consider a sequence sent to L1 as final                                                                                                                                                                                                                                                                                                                                   |
 
 ### <a name="SequenceSender_WaitPeriodSendSequence"></a>11.1. `SequenceSender.WaitPeriodSendSequence`
 
@@ -2755,6 +2799,20 @@ final gas: 1100
 ```
 [SequenceSender]
 GasOffset=80000
+```
+
+### <a name="SequenceSender_SequenceL1BlockConfirmations"></a>11.10. `SequenceSender.SequenceL1BlockConfirmations`
+
+**Type:** : `integer`
+
+**Default:** `32`
+
+**Description:** SequenceL1BlockConfirmations is number of blocks to consider a sequence sent to L1 as final
+
+**Example setting the default value** (32):
+```
+[SequenceSender]
+SequenceL1BlockConfirmations=32
 ```
 
 ## <a name="Aggregator"></a>12. `[Aggregator]`

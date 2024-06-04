@@ -107,11 +107,11 @@ L1SynchronizationMode = "sequential"
 L1SyncCheckL2BlockHash = true
 L1SyncCheckL2BlockNumberModulus = 600
 	[Synchronizer.L1BlockCheck]
-		Enable = true
+		Enabled = true
 		L1SafeBlockPoint = "finalized"
 		L1SafeBlockOffset = 0
 		ForceCheckBeforeStart = true
-		PreCheckEnable = true
+		PreCheckEnabled = true
 		L1PreSafeBlockPoint = "safe"
 		L1PreSafeBlockOffset = 0
 	[Synchronizer.L1ParallelSynchronization]
@@ -128,6 +128,7 @@ L1SyncCheckL2BlockNumberModulus = 600
 			AceptableInacctivityTime = "5s"
 			ApplyAfterNumRollupReceived = 10
 	[Synchronizer.L2Synchronization]
+		Enabled = true
 		AcceptEmptyClosedBatches = false
 		ReprocessFullBatchOnClose = true
 		CheckLastL2BlockHashOnCloseBatch = true
@@ -146,12 +147,13 @@ StateConsistencyCheckInterval = "5s"
 		ForcedBatchesCheckInterval = "10s"
 		L1InfoTreeL1BlockConfirmations = 64
 		L1InfoTreeCheckInterval = "10s"
-		BatchMaxDeltaTimestamp = "10s"
+		BatchMaxDeltaTimestamp = "1800s"
 		L2BlockMaxDeltaTimestamp = "3s"
 		ResourceExhaustedMarginPct = 10
+		StateRootSyncInterval = "3600s"
 		HaltOnBatchNumber = 0
 		SequentialBatchSanityCheck = false
-		SequentialProcessL2Block = true
+		SequentialProcessL2Block = false
 	[Sequencer.Finalizer.Metrics]
 		Interval = "60m"
 		EnableLog = true
@@ -166,6 +168,7 @@ WaitPeriodSendSequence = "5s"
 LastBatchVirtualizationTimeMaxWaitPeriod = "5s"
 L1BlockTimestampMargin = "30s"
 MaxTxSizeForL1 = 131072
+SequenceL1BlockConfirmations = 32
 L2Coinbase = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
 PrivateKey = {Path = "/pk/sequencer.keystore", Password = "testonly"}
 GasOffset = 80000

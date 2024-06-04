@@ -84,6 +84,54 @@ func (_c *StateFullInterface_AddAccumulatedInputHash_Call) RunAndReturn(run func
 	return _c
 }
 
+// AddBlobInner provides a mock function with given fields: ctx, blobInner, dbTx
+func (_m *StateFullInterface) AddBlobInner(ctx context.Context, blobInner *state.BlobInner, dbTx pgx.Tx) error {
+	ret := _m.Called(ctx, blobInner, dbTx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for AddBlobInner")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, *state.BlobInner, pgx.Tx) error); ok {
+		r0 = rf(ctx, blobInner, dbTx)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// StateFullInterface_AddBlobInner_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'AddBlobInner'
+type StateFullInterface_AddBlobInner_Call struct {
+	*mock.Call
+}
+
+// AddBlobInner is a helper method to define mock.On call
+//   - ctx context.Context
+//   - blobInner *state.BlobInner
+//   - dbTx pgx.Tx
+func (_e *StateFullInterface_Expecter) AddBlobInner(ctx interface{}, blobInner interface{}, dbTx interface{}) *StateFullInterface_AddBlobInner_Call {
+	return &StateFullInterface_AddBlobInner_Call{Call: _e.mock.On("AddBlobInner", ctx, blobInner, dbTx)}
+}
+
+func (_c *StateFullInterface_AddBlobInner_Call) Run(run func(ctx context.Context, blobInner *state.BlobInner, dbTx pgx.Tx)) *StateFullInterface_AddBlobInner_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*state.BlobInner), args[2].(pgx.Tx))
+	})
+	return _c
+}
+
+func (_c *StateFullInterface_AddBlobInner_Call) Return(_a0 error) *StateFullInterface_AddBlobInner_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *StateFullInterface_AddBlobInner_Call) RunAndReturn(run func(context.Context, *state.BlobInner, pgx.Tx) error) *StateFullInterface_AddBlobInner_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // AddBlobSequence provides a mock function with given fields: ctx, blobSequence, dbTx
 func (_m *StateFullInterface) AddBlobSequence(ctx context.Context, blobSequence *state.BlobSequence, dbTx pgx.Tx) error {
 	ret := _m.Called(ctx, blobSequence, dbTx)
@@ -1304,6 +1352,64 @@ func (_c *StateFullInterface_GetForkIDs_Call) Return(_a0 []state.ForkIDInterval,
 }
 
 func (_c *StateFullInterface_GetForkIDs_Call) RunAndReturn(run func(context.Context, pgx.Tx) ([]state.ForkIDInterval, error)) *StateFullInterface_GetForkIDs_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetL1InfoRecursiveRootLeafByIndex provides a mock function with given fields: ctx, l1InfoTreeIndex, dbTx
+func (_m *StateFullInterface) GetL1InfoRecursiveRootLeafByIndex(ctx context.Context, l1InfoTreeIndex uint32, dbTx pgx.Tx) (state.L1InfoTreeExitRootStorageEntry, error) {
+	ret := _m.Called(ctx, l1InfoTreeIndex, dbTx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetL1InfoRecursiveRootLeafByIndex")
+	}
+
+	var r0 state.L1InfoTreeExitRootStorageEntry
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, uint32, pgx.Tx) (state.L1InfoTreeExitRootStorageEntry, error)); ok {
+		return rf(ctx, l1InfoTreeIndex, dbTx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, uint32, pgx.Tx) state.L1InfoTreeExitRootStorageEntry); ok {
+		r0 = rf(ctx, l1InfoTreeIndex, dbTx)
+	} else {
+		r0 = ret.Get(0).(state.L1InfoTreeExitRootStorageEntry)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, uint32, pgx.Tx) error); ok {
+		r1 = rf(ctx, l1InfoTreeIndex, dbTx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// StateFullInterface_GetL1InfoRecursiveRootLeafByIndex_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetL1InfoRecursiveRootLeafByIndex'
+type StateFullInterface_GetL1InfoRecursiveRootLeafByIndex_Call struct {
+	*mock.Call
+}
+
+// GetL1InfoRecursiveRootLeafByIndex is a helper method to define mock.On call
+//   - ctx context.Context
+//   - l1InfoTreeIndex uint32
+//   - dbTx pgx.Tx
+func (_e *StateFullInterface_Expecter) GetL1InfoRecursiveRootLeafByIndex(ctx interface{}, l1InfoTreeIndex interface{}, dbTx interface{}) *StateFullInterface_GetL1InfoRecursiveRootLeafByIndex_Call {
+	return &StateFullInterface_GetL1InfoRecursiveRootLeafByIndex_Call{Call: _e.mock.On("GetL1InfoRecursiveRootLeafByIndex", ctx, l1InfoTreeIndex, dbTx)}
+}
+
+func (_c *StateFullInterface_GetL1InfoRecursiveRootLeafByIndex_Call) Run(run func(ctx context.Context, l1InfoTreeIndex uint32, dbTx pgx.Tx)) *StateFullInterface_GetL1InfoRecursiveRootLeafByIndex_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(uint32), args[2].(pgx.Tx))
+	})
+	return _c
+}
+
+func (_c *StateFullInterface_GetL1InfoRecursiveRootLeafByIndex_Call) Return(_a0 state.L1InfoTreeExitRootStorageEntry, _a1 error) *StateFullInterface_GetL1InfoRecursiveRootLeafByIndex_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *StateFullInterface_GetL1InfoRecursiveRootLeafByIndex_Call) RunAndReturn(run func(context.Context, uint32, pgx.Tx) (state.L1InfoTreeExitRootStorageEntry, error)) *StateFullInterface_GetL1InfoRecursiveRootLeafByIndex_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -2596,7 +2702,7 @@ func (_c *StateFullInterface_ProcessBatch_Call) RunAndReturn(run func(context.Co
 }
 
 // ProcessBatchV2 provides a mock function with given fields: ctx, request, updateMerkleTree
-func (_m *StateFullInterface) ProcessBatchV2(ctx context.Context, request state.ProcessRequest, updateMerkleTree bool) (*state.ProcessBatchResponse, error) {
+func (_m *StateFullInterface) ProcessBatchV2(ctx context.Context, request state.ProcessRequest, updateMerkleTree bool) (*state.ProcessBatchResponse, string, error) {
 	ret := _m.Called(ctx, request, updateMerkleTree)
 
 	if len(ret) == 0 {
@@ -2604,8 +2710,9 @@ func (_m *StateFullInterface) ProcessBatchV2(ctx context.Context, request state.
 	}
 
 	var r0 *state.ProcessBatchResponse
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, state.ProcessRequest, bool) (*state.ProcessBatchResponse, error)); ok {
+	var r1 string
+	var r2 error
+	if rf, ok := ret.Get(0).(func(context.Context, state.ProcessRequest, bool) (*state.ProcessBatchResponse, string, error)); ok {
 		return rf(ctx, request, updateMerkleTree)
 	}
 	if rf, ok := ret.Get(0).(func(context.Context, state.ProcessRequest, bool) *state.ProcessBatchResponse); ok {
@@ -2616,13 +2723,19 @@ func (_m *StateFullInterface) ProcessBatchV2(ctx context.Context, request state.
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, state.ProcessRequest, bool) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, state.ProcessRequest, bool) string); ok {
 		r1 = rf(ctx, request, updateMerkleTree)
 	} else {
-		r1 = ret.Error(1)
+		r1 = ret.Get(1).(string)
 	}
 
-	return r0, r1
+	if rf, ok := ret.Get(2).(func(context.Context, state.ProcessRequest, bool) error); ok {
+		r2 = rf(ctx, request, updateMerkleTree)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
 }
 
 // StateFullInterface_ProcessBatchV2_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ProcessBatchV2'
@@ -2645,12 +2758,72 @@ func (_c *StateFullInterface_ProcessBatchV2_Call) Run(run func(ctx context.Conte
 	return _c
 }
 
-func (_c *StateFullInterface_ProcessBatchV2_Call) Return(_a0 *state.ProcessBatchResponse, _a1 error) *StateFullInterface_ProcessBatchV2_Call {
+func (_c *StateFullInterface_ProcessBatchV2_Call) Return(_a0 *state.ProcessBatchResponse, _a1 string, _a2 error) *StateFullInterface_ProcessBatchV2_Call {
+	_c.Call.Return(_a0, _a1, _a2)
+	return _c
+}
+
+func (_c *StateFullInterface_ProcessBatchV2_Call) RunAndReturn(run func(context.Context, state.ProcessRequest, bool) (*state.ProcessBatchResponse, string, error)) *StateFullInterface_ProcessBatchV2_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ProcessBlobInner provides a mock function with given fields: ctx, request, data
+func (_m *StateFullInterface) ProcessBlobInner(ctx context.Context, request state.ProcessBlobInnerProcessRequest, data []byte) (*state.ProcessBlobInnerResponse, error) {
+	ret := _m.Called(ctx, request, data)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ProcessBlobInner")
+	}
+
+	var r0 *state.ProcessBlobInnerResponse
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, state.ProcessBlobInnerProcessRequest, []byte) (*state.ProcessBlobInnerResponse, error)); ok {
+		return rf(ctx, request, data)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, state.ProcessBlobInnerProcessRequest, []byte) *state.ProcessBlobInnerResponse); ok {
+		r0 = rf(ctx, request, data)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*state.ProcessBlobInnerResponse)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, state.ProcessBlobInnerProcessRequest, []byte) error); ok {
+		r1 = rf(ctx, request, data)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// StateFullInterface_ProcessBlobInner_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ProcessBlobInner'
+type StateFullInterface_ProcessBlobInner_Call struct {
+	*mock.Call
+}
+
+// ProcessBlobInner is a helper method to define mock.On call
+//   - ctx context.Context
+//   - request state.ProcessBlobInnerProcessRequest
+//   - data []byte
+func (_e *StateFullInterface_Expecter) ProcessBlobInner(ctx interface{}, request interface{}, data interface{}) *StateFullInterface_ProcessBlobInner_Call {
+	return &StateFullInterface_ProcessBlobInner_Call{Call: _e.mock.On("ProcessBlobInner", ctx, request, data)}
+}
+
+func (_c *StateFullInterface_ProcessBlobInner_Call) Run(run func(ctx context.Context, request state.ProcessBlobInnerProcessRequest, data []byte)) *StateFullInterface_ProcessBlobInner_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(state.ProcessBlobInnerProcessRequest), args[2].([]byte))
+	})
+	return _c
+}
+
+func (_c *StateFullInterface_ProcessBlobInner_Call) Return(_a0 *state.ProcessBlobInnerResponse, _a1 error) *StateFullInterface_ProcessBlobInner_Call {
 	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *StateFullInterface_ProcessBatchV2_Call) RunAndReturn(run func(context.Context, state.ProcessRequest, bool) (*state.ProcessBatchResponse, error)) *StateFullInterface_ProcessBatchV2_Call {
+func (_c *StateFullInterface_ProcessBlobInner_Call) RunAndReturn(run func(context.Context, state.ProcessBlobInnerProcessRequest, []byte) (*state.ProcessBlobInnerResponse, error)) *StateFullInterface_ProcessBlobInner_Call {
 	_c.Call.Return(run)
 	return _c
 }
