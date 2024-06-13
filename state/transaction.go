@@ -7,6 +7,7 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/blob/eip4844"
 	"github.com/0xPolygonHermez/zkevm-node/event"
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/log"
@@ -15,6 +16,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/trie"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v4"
@@ -208,9 +210,12 @@ func (s *State) StoreL2Block(ctx context.Context, batchNumber uint64, l2Block *P
 	log.Debugf("storing l2 block %d, txs %d, hash %s", l2Block.BlockNumber, len(l2Block.TransactionResponses), l2Block.BlockHash.String())
 	start := time.Now()
 
-	prevL2BlockHash, err := s.GetL2BlockHashByNumber(ctx, l2Block.BlockNumber-1, dbTx)
+	prevL2Block, err := s.GetL2BlockByNumber(ctx, l2Block.BlockNumber-1, dbTx)
 	if err != nil {
 		return err
+	}
+	if prevL2Block == nil {
+		return fmt.Errorf("l2 block %d not found", l2Block.BlockNumber-1)
 	}
 
 	forkID := s.GetForkIDByBatchNumber(batchNumber)
@@ -222,14 +227,27 @@ func (s *State) StoreL2Block(ctx context.Context, batchNumber uint64, l2Block *P
 	}
 
 	header := &types.Header{
-		Number:     new(big.Int).SetUint64(l2Block.BlockNumber),
-		ParentHash: prevL2BlockHash,
-		Coinbase:   l2Block.Coinbase,
-		Root:       l2Block.BlockHash, //BlockHash returned by the executor is the StateRoot in Etrog
-		GasUsed:    l2Block.GasUsed,
-		GasLimit:   gasLimit,
-		Time:       l2Block.Timestamp,
+		Number:      new(big.Int).SetUint64(l2Block.BlockNumber),
+		ParentHash:  prevL2Block.Hash(),
+		Coinbase:    l2Block.Coinbase,
+		Root:        l2Block.BlockHash, //BlockHash returned by the executor is the StateRoot in Etrog
+		GasUsed:     l2Block.GasUsed,
+		GasLimit:    gasLimit,
+		Time:        l2Block.Timestamp,
+		BlobGasUsed: &l2Block.BlobGasUsed, // update blob gas used
 	}
+
+	// update excess blob gas
+	var (
+		parentExcessBlobGas uint64
+		parentBlobGasUsed   uint64
+	)
+	if prevL2Block.ExcessBlobGas() != nil {
+		parentExcessBlobGas = *prevL2Block.ExcessBlobGas()
+		parentBlobGasUsed = *prevL2Block.BlobGasUsed()
+	}
+	excessBlobGas := eip4844.CalcExcessBlobGas(parentExcessBlobGas, parentBlobGasUsed)
+	header.ExcessBlobGas = &excessBlobGas
 
 	l2Header := NewL2Header(header)
 
@@ -243,6 +261,8 @@ func (s *State) StoreL2Block(ctx context.Context, batchNumber uint64, l2Block *P
 	txsL2Hash := make([]common.Hash, 0, numTxs)
 	imStateRoots := make([]common.Hash, 0, numTxs)
 	var receipt *types.Receipt
+
+	log.Info("New Block BlobGasUsed and blob count: ", l2Block.BlobGasUsed, l2Block.BlobGasUsed/params.BlobTxBlobGasPerBlob)
 
 	for i, txResponse := range l2Block.TransactionResponses {
 		// if the transaction has an intrinsic invalid tx error it means
