@@ -39,6 +39,20 @@ git clone git@github.com:crustio/ethda-node.git
 
 - **将test目录下sequencer.keystore和aggregator.keystore替换为部署合约的2个账户**
 
+- **临时将`GetL1BlockUpgradeLxLy`的扫描范围调小**
+代码位置: `etherman/etherman.go` 第398行
+
+```golang
+ func (etherMan *Client) GetL1BlockUpgradeLxLy(ctx context.Context, genesisBlock uint64) (uint64, error) {
+        it, err := etherMan.EtrogRollupManager.FilterInitialized(&bind.FilterOpts{
+                Start:   6032210,  // 将Start号从1修改为接近Sepolia Rollup的创建区块高度，如(test.genesis.config.json.genesisBlockNumber - 10)
+                End:     &genesisBlock,
+                Context: ctx,
+        })
+		// ...
+ }
+```
+
 - **构建docker镜像，部署node**
 ```
 cd test/ && make ship
@@ -52,7 +66,7 @@ run: ## Runs a full node
 	$(RUNSTATEDB)
 	$(RUNPOOLDB)
 	$(RUNEVENTDB)
-	$(RUNL1NETWORK)
+	#$(RUNL1NETWORK)
 	sleep 1
 	$(RUNZKPROVER)
 	$(RUNAPPROVE)
