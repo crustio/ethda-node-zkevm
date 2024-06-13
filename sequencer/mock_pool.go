@@ -248,6 +248,34 @@ func (_m *PoolMock) GetTxZkCountersByHash(ctx context.Context, hash common.Hash)
 	return r0, r1, r2
 }
 
+// IsBlob provides a mock function with given fields: ctx, hash
+func (_m *PoolMock) IsBlob(ctx context.Context, hash common.Hash) (bool, error) {
+	ret := _m.Called(ctx, hash)
+
+	if len(ret) == 0 {
+		panic("no return value specified for IsBlob")
+	}
+
+	var r0 bool
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, common.Hash) (bool, error)); ok {
+		return rf(ctx, hash)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, common.Hash) bool); ok {
+		r0 = rf(ctx, hash)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, common.Hash) error); ok {
+		r1 = rf(ctx, hash)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // MarkWIPTxsAsPending provides a mock function with given fields: ctx
 func (_m *PoolMock) MarkWIPTxsAsPending(ctx context.Context) error {
 	ret := _m.Called(ctx)

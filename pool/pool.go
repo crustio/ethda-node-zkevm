@@ -4,11 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/0xPolygonHermez/zkevm-node/blob"
-	"github.com/syndtr/goleveldb/leveldb"
 	"math/big"
 	"sync"
 	"time"
+
+	"github.com/0xPolygonHermez/zkevm-node/blob"
+	sdb "github.com/0xPolygonHermez/zkevm-node/blob/db"
 
 	"github.com/0xPolygonHermez/zkevm-node/event"
 	"github.com/0xPolygonHermez/zkevm-node/log"
@@ -52,7 +53,7 @@ type Pool struct {
 	gasPrices               GasPrices
 	gasPricesMux            *sync.RWMutex
 	effectiveGasPrice       *EffectiveGasPrice
-	BlobDB                  *leveldb.DB
+	BlobDB                  sdb.BlobDB
 }
 
 type preExecutionResponse struct {
@@ -73,7 +74,7 @@ type GasPrices struct {
 
 // NewPool creates and initializes an instance of Pool
 func NewPool(cfg Config, batchConstraintsCfg state.BatchConstraintsCfg, s storage, st stateInterface, chainID uint64, eventLog *event.EventLog) *Pool {
-	db, err := leveldb.OpenFile("/blob", nil)
+	sqliteDB, err := sdb.NewBlobDB("/blob/sqlite.db")
 	if err != nil {
 		panic(err)
 	}
@@ -92,7 +93,7 @@ func NewPool(cfg Config, batchConstraintsCfg state.BatchConstraintsCfg, s storag
 		gasPrices:               GasPrices{0, 0},
 		gasPricesMux:            new(sync.RWMutex),
 		effectiveGasPrice:       NewEffectiveGasPrice(cfg.EffectiveGasPrice),
-		BlobDB:                  db,
+		BlobDB:                  sqliteDB,
 	}
 	p.refreshGasPrices()
 	go func(cfg *Config, p *Pool) {
@@ -196,7 +197,7 @@ func (p *Pool) AddTx(ctx context.Context, tx types.Transaction, ip string) error
 			return err
 		}
 		hash := blob.BlobTxToLegacyTx(tx).Hash().Hex()
-		err = p.BlobDB.Put([]byte(fmt.Sprintf("blob-%s", hash)), b, nil)
+		err = p.BlobDB.Put([]byte(fmt.Sprintf("blob-%s", hash)), b)
 		if err != nil {
 			return err
 		}

@@ -17,6 +17,7 @@ import (
 
 // txPool contains the methods required to interact with the tx pool.
 type txPool interface {
+	IsBlob(ctx context.Context, hash common.Hash) (bool, error)
 	DeleteTransactionsByHashes(ctx context.Context, hashes []common.Hash) error
 	DeleteFailedTransactionsOlderThan(ctx context.Context, date time.Time) error
 	DeleteTransactionByHash(ctx context.Context, hash common.Hash) error
