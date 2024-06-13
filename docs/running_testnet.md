@@ -53,6 +53,17 @@ git clone git@github.com:crustio/ethda-node.git
  }
 ```
 
+- **如果需要连接独立部署的prover，配置test.node.config.toml**
+
+```yaml
+[MTClient]
+URI = "<prover-IP>:51061" // 修改为独立prover的IP和对应的MT端口
+
+[Executor]
+URI = "<prover-IP>:51071" // 修改为独立prover的IP和对应的Executor端口
+MaxGRPCMessageSize = 100000000
+```
+
 - **构建docker镜像，部署node**
 ```
 cd test/ && make ship
