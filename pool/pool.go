@@ -53,7 +53,8 @@ type Pool struct {
 	gasPrices               GasPrices
 	gasPricesMux            *sync.RWMutex
 	effectiveGasPrice       *EffectiveGasPrice
-	BlobDB                  sdb.BlobDB
+	blobDB                  sdb.BlobDB
+	blobCfg                 blob.Config
 }
 
 type preExecutionResponse struct {
@@ -73,7 +74,7 @@ type GasPrices struct {
 }
 
 // NewPool creates and initializes an instance of Pool
-func NewPool(cfg Config, batchConstraintsCfg state.BatchConstraintsCfg, s storage, st stateInterface, chainID uint64, eventLog *event.EventLog) *Pool {
+func NewPool(cfg Config, batchConstraintsCfg state.BatchConstraintsCfg, s storage, st stateInterface, chainID uint64, eventLog *event.EventLog, blobCfg blob.Config) *Pool {
 	sqliteDB, err := sdb.NewBlobDB("/blob/sqlite.db")
 	if err != nil {
 		panic(err)
@@ -93,7 +94,7 @@ func NewPool(cfg Config, batchConstraintsCfg state.BatchConstraintsCfg, s storag
 		gasPrices:               GasPrices{0, 0},
 		gasPricesMux:            new(sync.RWMutex),
 		effectiveGasPrice:       NewEffectiveGasPrice(cfg.EffectiveGasPrice),
-		BlobDB:                  sqliteDB,
+		blobDB:                  sqliteDB,
 	}
 	p.refreshGasPrices()
 	go func(cfg *Config, p *Pool) {
@@ -197,7 +198,7 @@ func (p *Pool) AddTx(ctx context.Context, tx types.Transaction, ip string) error
 			return err
 		}
 		hash := blob.BlobTxToLegacyTx(tx).Hash().Hex()
-		err = p.BlobDB.Put([]byte(fmt.Sprintf("blob-%s", hash)), b)
+		err = p.blobDB.Put([]byte(fmt.Sprintf("blob-%s", hash)), b)
 		if err != nil {
 			return err
 		}
