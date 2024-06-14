@@ -91,3 +91,53 @@ run: ## Runs a full node
 	$(RUNAGGREGATOR)
 	$(RUNJSONRPC)
 ```
+
+- **修改blob交易的ToAddress地址**
+
+```
+git clone git@github.com:crustio/zkblob-contracts.git
+```
+使用sequencer账户部署DAS.sol合约，得到合约地址\<ToAddress\>
+
+将`/test/config/test.node.config.toml`中Blob部分的ToAddress修改成\<ToAddress\>:
+
+```toml
+[Blob]
+ToAddress = "<ToAddress>"
+```
+
+- **重启json-rpc**
+
+```shell
+make stop-json-rpc && make run-json-rpc
+```
+
+- **修改blob-utils**
+
+```
+git clone git@github.com:crustio/blob-utils.git
+```
+
+修改blob.go开头的常量为\<ToAddress\>:
+
+```golang
+const (
+	BlobToAddress = "<ToAddress>"
+)
+```
+
+给blob-utils仓库重新打tag:
+
+```
+git tag v0.1.x 
+```
+
+- **cdk-validium-node仓库引用新的blob-utils分支**
+
+```
+git clone git@github.com:crustio/cdk-validium-node.git
+
+git checkout ethda
+```
+
+更新blob-utils的版本
