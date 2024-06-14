@@ -30,6 +30,12 @@ func (p *Pool) validateBlobTx(ctx context.Context, tx types.Transaction) error {
 
 	log.Infof("from: ", from.Hex())
 
+	// Check `to` address
+	toAddress := common.HexToAddress(p.blobCfg.ToAddress)
+	if tx.To() == nil || *tx.To() != toAddress {
+		return fmt.Errorf("blob transaction to address expect %v but got %v", toAddress, tx.To())
+	}
+
 	lastL2Block, err := p.state.GetLastL2Block(ctx, nil)
 	if err != nil {
 		return err
@@ -59,9 +65,9 @@ func (p *Pool) validateBlobTx(ctx context.Context, tx types.Transaction) error {
 }
 
 func (p *Pool) GetBlobTx(ctx context.Context, hash common.Hash) ([]byte, error) {
-	return p.BlobDB.Get([]byte(fmt.Sprintf("blob-%s", hash.Hex())))
+	return p.blobDB.Get([]byte(fmt.Sprintf("blob-%s", hash.Hex())))
 }
 
 func (p *Pool) IsBlob(ctx context.Context, hash common.Hash) (bool, error) {
-	return p.BlobDB.Has([]byte(fmt.Sprintf("blob-%s", hash.Hex())))
+	return p.blobDB.Has([]byte(fmt.Sprintf("blob-%s", hash.Hex())))
 }
