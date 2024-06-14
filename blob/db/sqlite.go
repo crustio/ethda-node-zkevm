@@ -6,6 +6,7 @@ import (
 	_ "modernc.org/sqlite"
 )
 
+// NewBlobDB creates a new sqlite3 BlobDB instance
 func NewBlobDB(path string) (BlobDB, error) {
 	db, err := sql.Open("sqlite", path)
 	if err != nil {
