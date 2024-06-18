@@ -2,7 +2,9 @@ package fee
 
 import (
 	"context"
+	"math/big"
 
+	"github.com/0xPolygonHermez/zkevm-node/blob/eip4844"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/params"
 )
@@ -31,4 +33,17 @@ func CalcBlobGasUsed(ctx context.Context, s stateInterface, pool txPool, batchNu
 	}
 
 	return uint64(count * params.BlobTxBlobGasPerBlob)
+}
+
+func GetL2BlobFeeCap(excessBlobGas *uint64) *big.Int {
+	if excessBlobGas == nil {
+		return big.NewInt(MinBlobBaseFee)
+	}
+
+	blobFee := eip4844.CalcBlobFee(*excessBlobGas)
+	if blobFee.Cmp(big.NewInt(MinBlobBaseFee)) == -1 {
+		blobFee = big.NewInt(MinBlobBaseFee)
+	}
+
+	return blobFee
 }

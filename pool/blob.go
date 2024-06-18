@@ -57,8 +57,9 @@ func (p *Pool) validateBlobTx(ctx context.Context, tx types.Transaction) error {
 		return fmt.Errorf("value is less than blob cost, %s < %s", tx.Value().String(), tx.Cost())
 	}
 
-	if tx.BlobGasFeeCapIntCmp(big.NewInt(fee.MinBlobBaseFee)) == -1 {
-		return fmt.Errorf("blob gas fee is less than base gas fee")
+	l2BlobFeeCap := fee.GetL2BlobFeeCap(lastL2Block.Header().ExcessBlobGas)
+	if tx.BlobGasFeeCapIntCmp(l2BlobFeeCap) == -1 {
+		return fmt.Errorf("blob gas fee is less than base gas fee, %s < %s", tx.BlobGasFeeCap().String(), l2BlobFeeCap.String())
 	}
 
 	return nil
