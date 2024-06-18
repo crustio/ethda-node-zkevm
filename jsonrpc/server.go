@@ -50,6 +50,8 @@ type Server struct {
 	srv        *http.Server
 	wsSrv      *http.Server
 	wsUpgrader websocket.Upgrader
+	st         types.StateInterface
+	p          types.PoolInterface
 }
 
 // Service defines a struct that will provide public methods to be exposed
@@ -88,6 +90,8 @@ func NewServer(
 		config:  cfg,
 		handler: handler,
 		chainID: chainID,
+		p:       p,
+		st:      s,
 	}
 	return srv
 }
@@ -121,6 +125,8 @@ func (s *Server) startHTTP() error {
 
 	lmt := tollbooth.NewLimiter(s.config.MaxRequestsPerIPAndSecond, nil)
 	mux.Handle("/", tollbooth.LimitFuncHandler(lmt, s.handle))
+	mux.Handle("/eth/v1/beacon/blob_sidecars/{block_id}", http.HandlerFunc(s.HandleGetBlobSidecars))
+	mux.Handle("/eth/v2/beacon/blocks/{block_id}", http.HandlerFunc(s.HandleGetBlocks))
 
 	s.srv = &http.Server{
 		Handler:           mux,
