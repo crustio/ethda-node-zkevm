@@ -17,6 +17,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/didip/tollbooth/v6"
+	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 )
 
@@ -121,15 +122,15 @@ func (s *Server) startHTTP() error {
 		return err
 	}
 
-	mux := http.NewServeMux()
+	r := mux.NewRouter()
 
 	lmt := tollbooth.NewLimiter(s.config.MaxRequestsPerIPAndSecond, nil)
-	mux.Handle("/", tollbooth.LimitFuncHandler(lmt, s.handle))
-	mux.Handle("/eth/v1/beacon/blob_sidecars/{block_id}", http.HandlerFunc(s.HandleGetBlobSidecars))
-	mux.Handle("/eth/v2/beacon/blocks/{block_id}", http.HandlerFunc(s.HandleGetBlocks))
+	r.Handle("/", tollbooth.LimitFuncHandler(lmt, s.handle))
+	r.Handle("/eth/v1/beacon/blob_sidecars/{block_id}", http.HandlerFunc(s.HandleGetBlobSidecars))
+	r.Handle("/eth/v2/beacon/blocks/{block_id}", http.HandlerFunc(s.HandleGetBlocks))
 
 	s.srv = &http.Server{
-		Handler:           mux,
+		Handler:           r,
 		ReadHeaderTimeout: s.config.ReadTimeout.Duration,
 		ReadTimeout:       s.config.ReadTimeout.Duration,
 		WriteTimeout:      s.config.WriteTimeout.Duration,

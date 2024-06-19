@@ -62,13 +62,17 @@ func (s *Server) HandleGetBlocks(w http.ResponseWriter, req *http.Request) {
 	for i := 0; i < len(block.Transactions()); i++ {
 		tx := block.Transactions()[i]
 
-		data, err := s.p.GetBlobTx(context.Background(), tx.Hash())
-		if err != nil && !errors.Is(err, leveldb.ErrNotFound) {
-			handleError(w, fmt.Errorf("failed to load blob tx from leveldb", blockId, height))
+		existed, err := s.p.IsBlob(context.Background(), tx.Hash())
+		if err != nil {
+			handleError(w, fmt.Errorf("failed to check blob tx from leveldb: %s=>%d", blockId, height))
 			return
 		}
-
-		if err == nil {
+		if existed {
+			data, err := s.p.GetBlobTx(context.Background(), tx.Hash())
+			if err != nil && !errors.Is(err, leveldb.ErrNotFound) {
+				handleError(w, fmt.Errorf("failed to load blob tx from leveldb", blockId, height))
+				return
+			}
 			newTx := new(types2.Transaction)
 			if err := newTx.UnmarshalBinary(data); err != nil {
 				handleError(w, fmt.Errorf("failed to unmarshal blob data"))
@@ -134,13 +138,18 @@ func (s *Server) HandleGetBlobSidecars(w http.ResponseWriter, req *http.Request)
 	var bss []*ethpb.BlobSidecar
 	txs := block.Transactions()
 	for _, tx := range txs {
-		data, err := s.p.GetBlobTx(context.Background(), tx.Hash())
-		if err != nil && !errors.Is(err, leveldb.ErrNotFound) {
-			handleError(w, fmt.Errorf("could not get blob tx: %s", tx.Hash().Hex()))
+		existed, err := s.p.IsBlob(context.Background(), tx.Hash())
+		if err != nil {
+			handleError(w, fmt.Errorf("failed to check blob tx from leveldb: %s=>%d", blockId, height))
 			return
 		}
-		if errors.Is(err, leveldb.ErrNotFound) {
+		if !existed {
 			continue
+		}
+		data, err := s.p.GetBlobTx(context.Background(), tx.Hash())
+		if err != nil {
+			handleError(w, fmt.Errorf("failed to load blob tx from leveldb: %s=>%d", blockId, height))
+			return
 		}
 
 		newTx := new(types2.Transaction)
