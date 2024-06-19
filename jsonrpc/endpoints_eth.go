@@ -14,8 +14,6 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/blob"
 	"github.com/0xPolygonHermez/zkevm-node/blob/eip4844"
 	"github.com/0xPolygonHermez/zkevm-node/blob/fee"
-	"github.com/syndtr/goleveldb/leveldb"
-
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/client"
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/types"
@@ -689,19 +687,16 @@ func (e *EthEndpoints) GetTransactionByHash(hash types.ArgHash, includeExtraInfo
 			l2Hash = l2h
 		}
 
-		data, err := e.pool.GetBlobTx(ctx, hash.Hash())
-		if err != nil && !errors.Is(err, leveldb.ErrNotFound) {
-			return RPCErrorResponse(types.DefaultErrorCode, fmt.Sprintf("failed to load blob tx from leveldb: %w", err), err, true)
+		existed, err := e.pool.IsBlob(ctx, hash.Hash())
+		if err != nil {
+			return RPCErrorResponse(types.DefaultErrorCode, fmt.Sprintf("failed to check blob tx from db: %w", err), err, true)
 		}
 
-		if errors.Is(err, leveldb.ErrNotFound) {
-			res, err := types.NewTransaction(*tx, receipt, false, l2Hash)
+		if existed {
+			data, err := e.pool.GetBlobTx(ctx, hash.Hash())
 			if err != nil {
-				return RPCErrorResponse(types.DefaultErrorCode, "failed to build transaction response", err, true)
+				return RPCErrorResponse(types.DefaultErrorCode, fmt.Sprintf("failed to load blob tx from db: %w", err), err, true)
 			}
-
-			return res, nil
-		} else {
 			newTx := new(ethTypes.Transaction)
 			if err := newTx.UnmarshalBinary(data); err != nil {
 				return RPCErrorResponse(types.DefaultErrorCode, "failed to unmarshal blob data", err, true)
@@ -710,6 +705,13 @@ func (e *EthEndpoints) GetTransactionByHash(hash types.ArgHash, includeExtraInfo
 			res, err := types.NewBlobTransaction(*newTx, receipt, false, true, l2Hash)
 			if err != nil {
 				return RPCErrorResponse(types.DefaultErrorCode, "failed to build blob transaction response", err, true)
+			}
+
+			return res, nil
+		} else {
+			res, err := types.NewTransaction(*tx, receipt, false, l2Hash)
+			if err != nil {
+				return RPCErrorResponse(types.DefaultErrorCode, "failed to build transaction response", err, true)
 			}
 
 			return res, nil

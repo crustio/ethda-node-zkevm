@@ -17,6 +17,7 @@ import (
 type PoolInterface interface {
 	AddTx(ctx context.Context, tx types.Transaction, ip string) error
 	GetBlobTx(ctx context.Context, hash common.Hash) ([]byte, error)
+	IsBlob(ctx context.Context, hash common.Hash) (bool, error)
 	GetGasPrices(ctx context.Context) (pool.GasPrices, error)
 	GetNonce(ctx context.Context, address common.Address) (uint64, error)
 	GetPendingTxHashesSince(ctx context.Context, since time.Time) ([]common.Hash, error)
