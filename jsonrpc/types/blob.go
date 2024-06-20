@@ -46,29 +46,27 @@ func NewBlobTransaction(tx types.Transaction,
 	includeReceipt bool,
 	withBlob bool,
 	l2Hash *common.Hash,
-) (*BlobTransaction, error) {
+) (*Transaction, error) {
 	ltx := blob.BlobTxToLegacyTx(tx)
 	v, r, s := ltx.RawSignatureValues()
 	from, _ := state.GetSender(tx)
 
-	res := &BlobTransaction{
-		Nonce:                ArgUint64(tx.Nonce()),
-		GasPrice:             ArgBig(*tx.GasPrice()),
-		Gas:                  ArgUint64(tx.Gas()),
-		To:                   tx.To(),
-		Value:                ArgBig(*tx.Value()),
-		Input:                tx.Data(),
-		V:                    ArgBig(*v),
-		R:                    ArgBig(*r),
-		S:                    ArgBig(*s),
-		Hash:                 ltx.Hash(),
-		From:                 from,
-		ChainID:              ArgBig(*tx.ChainId()),
-		Type:                 ArgUint64(tx.Type()),
-		BlobHashes:           tx.BlobHashes(),
-		MaxFeePerBlobGas:     ArgBig(*tx.GasPrice()),
-		MaxPriorityFeePerGas: ArgBig(*tx.GasTipCap()),
-		MaxFeePerGas:         ArgBig(*tx.GasFeeCap()),
+	res := &Transaction{
+		Nonce:            ArgUint64(tx.Nonce()),
+		GasPrice:         ArgBig(*tx.GasPrice()),
+		Gas:              ArgUint64(tx.Gas()),
+		To:               tx.To(),
+		Value:            ArgBig(*tx.Value()),
+		Input:            tx.Data(),
+		V:                ArgBig(*v),
+		R:                ArgBig(*r),
+		S:                ArgBig(*s),
+		Hash:             ltx.Hash(),
+		From:             from,
+		ChainID:          ArgBig(*tx.ChainId()),
+		Type:             ArgUint64(tx.Type()),
+		BlobHashes:       tx.BlobHashes(),
+		MaxFeePerBlobGas: ArgBig(*tx.BlobGasFeeCap()),
 	}
 
 	if withBlob {

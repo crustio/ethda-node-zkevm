@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	blobjsonrpc "github.com/0xPolygonHermez/zkevm-node/blob/jsonrpc"
 	"math/big"
 	"strconv"
 	"strings"
@@ -261,10 +262,12 @@ type Block struct {
 	Uncles          []common.Hash       `json:"uncles"`
 	GlobalExitRoot  *common.Hash        `json:"globalExitRoot,omitempty"`
 	BlockInfoRoot   *common.Hash        `json:"blockInfoRoot,omitempty"`
+	BlobGasUsed     *ArgUint64          `json:"blobGasUsed"`
+	ExcessBlobGas   *ArgUint64          `json:"excessBlobGas"`
 }
 
 // NewBlock creates a Block instance
-func NewBlock(ctx context.Context, st StateInterface, hash *common.Hash, b *state.L2Block, receipts []types.Receipt, fullTx, includeReceipts bool, includeExtraInfo *bool, dbTx pgx.Tx) (*Block, error) {
+func NewBlock(ctx context.Context, pool PoolInterface, st StateInterface, hash *common.Hash, b *state.L2Block, receipts []types.Receipt, fullTx, includeReceipts bool, includeExtraInfo *bool, dbTx pgx.Tx) (*Block, error) {
 	h := b.Header()
 
 	n := big.NewInt(0).SetUint64(h.Nonce.Uint64())
@@ -278,6 +281,18 @@ func NewBlock(ctx context.Context, st StateInterface, hash *common.Hash, b *stat
 	}
 
 	totalDifficult := ArgUint64(difficulty)
+
+	var blobGasUsed *ArgUint64
+	if h.BlobGasUsed != nil {
+		h := ArgUint64(*h.BlobGasUsed)
+		blobGasUsed = &h
+	}
+
+	var excessBlobGas *ArgUint64
+	if h.ExcessBlobGas != nil {
+		h := ArgUint64(*h.ExcessBlobGas)
+		excessBlobGas = &h
+	}
 
 	res := &Block{
 		ParentHash:      h.ParentHash,
@@ -300,6 +315,8 @@ func NewBlock(ctx context.Context, st StateInterface, hash *common.Hash, b *stat
 		Hash:            hash,
 		Transactions:    []TransactionOrHash{},
 		Uncles:          []common.Hash{},
+		BlobGasUsed:     blobGasUsed,
+		ExcessBlobGas:   excessBlobGas,
 	}
 
 	if includeExtraInfo != nil && *includeExtraInfo {
@@ -314,11 +331,6 @@ func NewBlock(ctx context.Context, st StateInterface, hash *common.Hash, b *stat
 
 	for _, tx := range b.Transactions() {
 		if fullTx {
-			var receiptPtr *types.Receipt
-			if receipt, found := receiptsMap[tx.Hash()]; found {
-				receiptPtr = &receipt
-			}
-
 			var l2Hash *common.Hash
 			if includeExtraInfo != nil && *includeExtraInfo {
 				l2h, err := st.GetL2TxHashByTxHash(ctx, tx.Hash(), dbTx)
@@ -328,14 +340,34 @@ func NewBlock(ctx context.Context, st StateInterface, hash *common.Hash, b *stat
 				l2Hash = l2h
 			}
 
-			rpcTx, err := NewTransaction(*tx, receiptPtr, includeReceipts, l2Hash)
+			var receiptPtr *types.Receipt
+			if receipt, found := receiptsMap[tx.Hash()]; found {
+				receiptPtr = &receipt
+			}
+			blobTx, err := blobjsonrpc.GetBlobTx(ctx, pool, tx.Hash())
 			if err != nil {
 				return nil, err
 			}
-			res.Transactions = append(
-				res.Transactions,
-				TransactionOrHash{Tx: rpcTx},
-			)
+			if blobTx != nil {
+				rpx, err := NewBlobTransaction(*tx, receiptPtr, includeReceipts, true, l2Hash)
+				if err != nil {
+					return nil, err
+				}
+
+				res.Transactions = append(
+					res.Transactions,
+					TransactionOrHash{Tx: rpx},
+				)
+			} else {
+				rpcTx, err := NewTransaction(*tx, receiptPtr, includeReceipts, l2Hash)
+				if err != nil {
+					return nil, err
+				}
+				res.Transactions = append(
+					res.Transactions,
+					TransactionOrHash{Tx: rpcTx},
+				)
+			}
 		} else {
 			h := tx.Hash()
 			res.Transactions = append(
@@ -373,7 +405,7 @@ type Batch struct {
 }
 
 // NewBatch creates a Batch instance
-func NewBatch(ctx context.Context, st StateInterface, batch *state.Batch, virtualBatch *state.VirtualBatch, verifiedBatch *state.VerifiedBatch, blocks []state.L2Block, receipts []types.Receipt, fullTx, includeReceipts bool, ger *state.GlobalExitRoot, dbTx pgx.Tx) (*Batch, error) {
+func NewBatch(ctx context.Context, pool PoolInterface, st StateInterface, batch *state.Batch, virtualBatch *state.VirtualBatch, verifiedBatch *state.VerifiedBatch, blocks []state.L2Block, receipts []types.Receipt, fullTx, includeReceipts bool, ger *state.GlobalExitRoot, dbTx pgx.Tx) (*Batch, error) {
 	batchL2Data := batch.BatchL2Data
 	closed := !batch.WIP
 	res := &Batch{
@@ -432,7 +464,7 @@ func NewBatch(ctx context.Context, st StateInterface, batch *state.Batch, virtua
 	for _, b := range blocks {
 		b := b
 		if fullTx {
-			block, err := NewBlock(ctx, st, state.Ptr(b.Hash()), &b, nil, false, false, state.Ptr(true), dbTx)
+			block, err := NewBlock(ctx, pool, st, state.Ptr(b.Hash()), &b, nil, false, false, state.Ptr(true), dbTx)
 			if err != nil {
 				return nil, err
 			}
@@ -538,6 +570,10 @@ type Transaction struct {
 	Type        ArgUint64       `json:"type"`
 	Receipt     *Receipt        `json:"receipt,omitempty"`
 	L2Hash      *common.Hash    `json:"l2Hash,omitempty"`
+
+	BlobHashes       []common.Hash  `json:"blobVersionedHashes"`
+	Sidecar          *BlobTxSidecar `json:"sidecar"`
+	MaxFeePerBlobGas ArgBig         `json:"maxFeePerBlobGas"`
 }
 
 // CoreTx returns a geth core type Transaction
