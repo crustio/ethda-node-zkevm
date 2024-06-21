@@ -1,6 +1,8 @@
 package types
 
 import (
+	"encoding/json"
+	"fmt"
 	"github.com/0xPolygonHermez/zkevm-node/blob"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
@@ -51,6 +53,12 @@ func NewBlobTransaction(tx types.Transaction,
 	v, r, s := ltx.RawSignatureValues()
 	from, _ := state.GetSender(tx)
 
+	ff, err := json.Marshal(tx)
+	if err != nil {
+		return nil, err
+	}
+
+	fmt.Printf("%+v\n", string(ff))
 	res := &Transaction{
 		Nonce:            ArgUint64(tx.Nonce()),
 		GasPrice:         ArgBig(*tx.GasPrice()),

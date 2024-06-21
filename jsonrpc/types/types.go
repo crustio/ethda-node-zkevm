@@ -349,7 +349,7 @@ func NewBlock(ctx context.Context, pool PoolInterface, st StateInterface, hash *
 				return nil, err
 			}
 			if blobTx != nil {
-				rpx, err := NewBlobTransaction(*tx, receiptPtr, includeReceipts, true, l2Hash)
+				rpx, err := NewBlobTransaction(*blobTx, receiptPtr, includeReceipts, true, l2Hash)
 				if err != nil {
 					return nil, err
 				}
