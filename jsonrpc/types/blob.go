@@ -51,7 +51,7 @@ func NewBlobTransaction(tx types.Transaction,
 ) (*Transaction, error) {
 	ltx := blob.BlobTxToLegacyTx(tx)
 	v, r, s := ltx.RawSignatureValues()
-	from, _ := state.GetSender(tx)
+	from, _ := state.GetSender(*ltx)
 
 	ff, err := json.Marshal(tx)
 	if err != nil {
