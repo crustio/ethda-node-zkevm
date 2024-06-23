@@ -28,6 +28,12 @@ func (a *Aggregator) tryBuildFinalProof(ctx context.Context, prover proverInterf
 		"proverId", proverID,
 		"proverAddr", prover.Addr(),
 	)
+	if proof != nil {
+		log = log.WithFields(
+			"proof_batch_num", proof.BatchNumber,
+			"proof_batch_num_final", proof.BatchNumberFinal,
+		)
+	}
 	log.Debug("tryBuildFinalProof start")
 
 	var err error
