@@ -68,7 +68,7 @@ func (p *PostgresStorage) GetBatchProofsToAggregate(ctx context.Context, dbTx pg
 	)
 
 	// TODO: add comments to explain the query
-	const getBatchProofsToAggregateSQL = `
+	const getProofsToAggregateSQL = `
 		SELECT 
 			p1.batch_num as p1_batch_num, 
 			p1.batch_num_final as p1_batch_num_final, 
@@ -91,15 +91,30 @@ func (p *PostgresStorage) GetBatchProofsToAggregate(ctx context.Context, dbTx pg
 			p2.created_at as p2_created_at,
 			p2.updated_at as p2_updated_at
 		FROM state.batch_proof p1 INNER JOIN state.batch_proof p2 ON p1.batch_num_final = p2.batch_num - 1
-		WHERE p1.blob_inner_num = p2.blob_inner_num AND
-			  p1.generating_since IS NULL AND p2.generating_since IS NULL AND 
-		 	  p1.proof IS NOT NULL AND p2.proof IS NOT NULL
+		WHERE p1.generating_since IS NULL AND p2.generating_since IS NULL AND 
+		 	  p1.proof IS NOT NULL AND p2.proof IS NOT NULL AND
+			  (
+					EXISTS (
+					SELECT 1 FROM state.sequences s
+					WHERE p1.batch_num >= s.from_batch_num AND p1.batch_num <= s.to_batch_num AND
+						p1.batch_num_final >= s.from_batch_num AND p1.batch_num_final <= s.to_batch_num AND
+						p2.batch_num >= s.from_batch_num AND p2.batch_num <= s.to_batch_num AND
+						p2.batch_num_final >= s.from_batch_num AND p2.batch_num_final <= s.to_batch_num
+					)
+					OR
+					(
+						EXISTS ( SELECT 1 FROM state.sequences s WHERE p1.batch_num = s.from_batch_num) AND
+						EXISTS ( SELECT 1 FROM state.sequences s WHERE p1.batch_num_final = s.to_batch_num) AND
+						EXISTS ( SELECT 1 FROM state.sequences s WHERE p2.batch_num = s.from_batch_num) AND
+						EXISTS ( SELECT 1 FROM state.sequences s WHERE p2.batch_num_final = s.to_batch_num)
+					)
+				)
 		ORDER BY p1.batch_num ASC
 		LIMIT 1
 		`
 
 	e := p.getExecQuerier(dbTx)
-	row := e.QueryRow(ctx, getBatchProofsToAggregateSQL)
+	row := e.QueryRow(ctx, getProofsToAggregateSQL)
 	err := row.Scan(
 		&proof1.BatchNumber, &proof1.BatchNumberFinal, &proof1.Proof, &proof1.ProofID, &proof1.InputProver, &proof1.Prover, &proof1.ProverID, &proof1.GeneratingSince, &proof1.CreatedAt, &proof1.UpdatedAt,
 		&proof2.BatchNumber, &proof2.BatchNumberFinal, &proof2.Proof, &proof2.ProofID, &proof2.InputProver, &proof2.Prover, &proof2.ProverID, &proof2.GeneratingSince, &proof2.CreatedAt, &proof2.UpdatedAt)
