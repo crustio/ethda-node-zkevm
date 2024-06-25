@@ -12,7 +12,14 @@
 
 ## 在l1部署合约
 - **部署zkevm-contract**
-  与部署[cdk-validum-node](https://github.com/crustio/cdk-validium-node/blob/ethda/docs/running_ethda_sepolia.md)相同流程,**dataAvailabilityProtocol无需填写**
+  与部署[cdk-validum-node](https://github.com/crustio/cdk-validium-node/blob/ethda/docs/running_ethda_sepolia.md)相同流程(合约部署参数做一些调整),**dataAvailabilityProtocol无需填写**
+
+合约部署参数`create_rollup_parameters.json`需要开启使用production-prover，默认值`false`表示使用mock-prover：
+
+```json
+"realVerifier": true,
+```
+
 ```
 npm install && npm run deploy:testnet:v2:sepolia
 ```
@@ -39,20 +46,6 @@ git clone git@github.com:crustio/ethda-node.git
 
 - **将test目录下sequencer.keystore和aggregator.keystore替换为部署合约的2个账户**
 
-- **临时将`GetL1BlockUpgradeLxLy`的扫描范围调小**
-代码位置: `etherman/etherman.go` 第398行
-
-```golang
- func (etherMan *Client) GetL1BlockUpgradeLxLy(ctx context.Context, genesisBlock uint64) (uint64, error) {
-        it, err := etherMan.EtrogRollupManager.FilterInitialized(&bind.FilterOpts{
-                Start:   6032210,  // 将Start号从1修改为接近Sepolia Rollup的创建区块高度，如(test.genesis.config.json.genesisBlockNumber - 10)
-                End:     &genesisBlock,
-                Context: ctx,
-        })
-		// ...
- }
-```
-
 - **如果需要连接独立部署的prover，配置test.node.config.toml**
 
 ```yaml
@@ -63,6 +56,22 @@ URI = "<prover-IP>:51061" // 修改为独立prover的IP和对应的MT端口
 URI = "<prover-IP>:51071" // 修改为独立prover的IP和对应的Executor端口
 MaxGRPCMessageSize = 100000000
 ```
+
+- **修改test/docker-compose.yml部署参数**
+
+1.zkevm-sequence-sender服务:
+
+ZKEVM_NODE_SEQUENCER_SENDER_ADDRESS 修改为对应sequence账户地址
+
+2.zkevm-aggregator服务:
+
+ZKEVM_NODE_AGGREGATOR_SENDER_ADDRESS 修改为对应aggregator账户地址
+
+3.zkevm-approve服务:
+
+对应私钥账户的密码
+
+- **删除本地持久化数据(若存在): ~/.ethda/blob/sqlite.db**
 
 - **构建docker镜像，部署node**
 ```

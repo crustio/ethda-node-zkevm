@@ -1,4 +1,4 @@
-# 单独部署prover
+# 部署 production prover
 
 - **在目标机器创建文件目录**
 
@@ -15,6 +15,15 @@
 
 ```json
 {
+    // ...
+    "runAggregatorServer": false,
+    "runAggregatorClient": true, // 开启AggregatorClient
+    "runAggregatorClientMock": false, // 关闭mock prover
+
+    // ...
+    "outputPath": "output",
+    "configPath": "/config",  // 新增configPath指定config路径
+
     // ...
 
     "aggregatorServerPort": 50081,
@@ -47,6 +56,7 @@ services:
       - 51061:50061 # MT
       - 51071:50071 # Executor
     volumes:
+      - ./v6.0.0-rc.1-fork.9/config:/config
       - ./config/prover.config.json:/usr/src/app/config.json
     command: >
       zkProver -c /usr/src/app/config.json
