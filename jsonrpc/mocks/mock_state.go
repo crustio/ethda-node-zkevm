@@ -181,6 +181,36 @@ func (_m *StateMock) GetBalance(ctx context.Context, address common.Address, roo
 	return r0, r1
 }
 
+// GetBatchByL2BlockNumber provides a mock function with given fields: ctx, l2BlockNumber, dbTx
+func (_m *StateMock) GetBatchByL2BlockNumber(ctx context.Context, l2BlockNumber uint64, dbTx pgx.Tx) (*state.Batch, error) {
+	ret := _m.Called(ctx, l2BlockNumber, dbTx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetBatchByL2BlockNumber")
+	}
+
+	var r0 *state.Batch
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) (*state.Batch, error)); ok {
+		return rf(ctx, l2BlockNumber, dbTx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) *state.Batch); ok {
+		r0 = rf(ctx, l2BlockNumber, dbTx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*state.Batch)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, uint64, pgx.Tx) error); ok {
+		r1 = rf(ctx, l2BlockNumber, dbTx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // GetBatchByNumber provides a mock function with given fields: ctx, batchNumber, dbTx
 func (_m *StateMock) GetBatchByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.Batch, error) {
 	ret := _m.Called(ctx, batchNumber, dbTx)

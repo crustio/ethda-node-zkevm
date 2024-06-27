@@ -221,4 +221,7 @@ Host = "zkevm-state-db"
 Port = "5432"
 EnableLog = false
 MaxConns = 200
+
+[Blob]
+ToAddress = "0x0"
 `
