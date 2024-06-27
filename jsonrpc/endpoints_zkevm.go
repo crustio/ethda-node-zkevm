@@ -188,7 +188,7 @@ func (z *ZKEVMEndpoints) GetBatchByNumber(batchNumber types.BatchNumber, fullTx 
 	}
 
 	batch.Transactions = txs
-	rpcBatch, err := types.NewBatch(ctx, z.state, batch, virtualBatch, verifiedBatch, blocks, receipts, fullTx, true, ger, nil)
+	rpcBatch, err := types.NewBatch(ctx, z.pool, z.state, batch, virtualBatch, verifiedBatch, blocks, receipts, fullTx, true, ger, nil)
 	if err != nil {
 		return RPCErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't build the batch %v response", numericBatchNumber), err, true)
 	}
@@ -210,7 +210,7 @@ func (z *ZKEVMEndpoints) GetFullBlockByNumber(number types.BlockNumber, fullTx b
 			UncleHash:  ethTypes.EmptyUncleHash,
 		})
 		l2Block := state.NewL2BlockWithHeader(l2Header)
-		rpcBlock, err := types.NewBlock(ctx, z.state, nil, l2Block, nil, fullTx, false, state.Ptr(true), nil)
+		rpcBlock, err := types.NewBlock(ctx, z.pool, z.state, nil, l2Block, nil, fullTx, false, state.Ptr(true), nil)
 		if err != nil {
 			return RPCErrorResponse(types.DefaultErrorCode, "couldn't build the pending block response", err, true)
 		}
@@ -246,7 +246,7 @@ func (z *ZKEVMEndpoints) GetFullBlockByNumber(number types.BlockNumber, fullTx b
 		receipts = append(receipts, *receipt)
 	}
 
-	rpcBlock, err := types.NewBlock(ctx, z.state, state.Ptr(l2Block.Hash()), l2Block, receipts, fullTx, true, state.Ptr(true), nil)
+	rpcBlock, err := types.NewBlock(ctx, z.pool, z.state, state.Ptr(l2Block.Hash()), l2Block, receipts, fullTx, true, state.Ptr(true), nil)
 	if err != nil {
 		return RPCErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't build block response for block by number %v", blockNumber), err, true)
 	}
@@ -274,7 +274,7 @@ func (z *ZKEVMEndpoints) GetFullBlockByHash(hash types.ArgHash, fullTx bool) (in
 		receipts = append(receipts, *receipt)
 	}
 
-	rpcBlock, err := types.NewBlock(ctx, z.state, state.Ptr(l2Block.Hash()), l2Block, receipts, fullTx, true, state.Ptr(true), nil)
+	rpcBlock, err := types.NewBlock(ctx, z.pool, z.state, state.Ptr(l2Block.Hash()), l2Block, receipts, fullTx, true, state.Ptr(true), nil)
 	if err != nil {
 		return RPCErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't build block response for block by hash %v", hash.Hash()), err, true)
 	}

@@ -5,12 +5,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	blobjsonrpc "github.com/0xPolygonHermez/zkevm-node/blob/jsonrpc"
 	"math/big"
 	"net/http"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/blob"
+	"github.com/0xPolygonHermez/zkevm-node/blob/eip4844"
+	"github.com/0xPolygonHermez/zkevm-node/blob/fee"
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/client"
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/types"
@@ -212,6 +216,27 @@ func (e *EthEndpoints) GasPrice() (interface{}, types.Error) {
 	return hex.EncodeUint64(gasPrices.L2GasPrice), nil
 }
 
+func (e *EthEndpoints) BlobBaseFee() (interface{}, types.Error) {
+	lastL2Block, err := e.state.GetLastL2Block(context.Background(), nil)
+	if err != nil {
+		return "0x0", nil
+	}
+
+	excess := lastL2Block.Header().ExcessBlobGas
+
+	if excess == nil {
+		return "0x0", nil
+	}
+
+	blobFee := eip4844.CalcBlobFee(*excess)
+	if blobFee.Cmp(big.NewInt(fee.MinBlobBaseFee)) == -1 {
+		log.Debug("BlobFee is less than MinBlobBaseFee: ", blobFee.Uint64())
+		return hex.EncodeUint64(fee.MinBlobBaseFee), nil
+	}
+
+	return hex.EncodeBig(blobFee), nil
+}
+
 func (e *EthEndpoints) getPriceFromSequencerNode() (interface{}, types.Error) {
 	res, err := client.JSONRPCCall(e.cfg.SequencerNodeURI, "eth_gasPrice")
 	if err != nil {
@@ -321,7 +346,7 @@ func (e *EthEndpoints) GetBlockByHash(hash types.ArgHash, fullTx bool, includeEx
 		receipts = append(receipts, *receipt)
 	}
 
-	rpcBlock, err := types.NewBlock(ctx, e.state, state.Ptr(l2Block.Hash()), l2Block, receipts, fullTx, false, includeExtraInfo, nil)
+	rpcBlock, err := types.NewBlock(ctx, e.pool, e.state, state.Ptr(l2Block.Hash()), l2Block, receipts, fullTx, false, includeExtraInfo, nil)
 	if err != nil {
 		return RPCErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't build block response for block by hash %v", hash.Hash()), err, true)
 	}
@@ -344,7 +369,7 @@ func (e *EthEndpoints) GetBlockByNumber(number types.BlockNumber, fullTx bool, i
 			UncleHash:  ethTypes.EmptyUncleHash,
 		})
 		l2Block := state.NewL2BlockWithHeader(l2Header)
-		rpcBlock, err := types.NewBlock(ctx, e.state, nil, l2Block, nil, fullTx, false, includeExtraInfo, nil)
+		rpcBlock, err := types.NewBlock(ctx, e.pool, e.state, nil, l2Block, nil, fullTx, false, includeExtraInfo, nil)
 		if err != nil {
 			return RPCErrorResponse(types.DefaultErrorCode, "couldn't build the pending block response", err, true)
 		}
@@ -380,7 +405,7 @@ func (e *EthEndpoints) GetBlockByNumber(number types.BlockNumber, fullTx bool, i
 		receipts = append(receipts, *receipt)
 	}
 
-	rpcBlock, err := types.NewBlock(ctx, e.state, state.Ptr(l2Block.Hash()), l2Block, receipts, fullTx, false, includeExtraInfo, nil)
+	rpcBlock, err := types.NewBlock(ctx, e.pool, e.state, state.Ptr(l2Block.Hash()), l2Block, receipts, fullTx, false, includeExtraInfo, nil)
 	if err != nil {
 		return RPCErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't build block response for block by number %v", blockNumber), err, true)
 	}
@@ -663,12 +688,26 @@ func (e *EthEndpoints) GetTransactionByHash(hash types.ArgHash, includeExtraInfo
 			l2Hash = l2h
 		}
 
-		res, err := types.NewTransaction(*tx, receipt, false, l2Hash)
+		blobTx, err := blobjsonrpc.GetBlobTx(ctx, e.pool, hash.Hash())
 		if err != nil {
-			return RPCErrorResponse(types.DefaultErrorCode, "failed to build transaction response", err, true)
+			return RPCErrorResponse(types.DefaultErrorCode, fmt.Sprintf("failed to load blob tx from db: %w", err), err, true)
 		}
 
-		return res, nil
+		if blobTx != nil {
+			res, err := types.NewBlobTransaction(*blobTx, receipt, false, true, l2Hash)
+			if err != nil {
+				return RPCErrorResponse(types.DefaultErrorCode, "failed to build blob transaction response", err, true)
+			}
+
+			return res, nil
+		} else {
+			res, err := types.NewTransaction(*tx, receipt, false, l2Hash)
+			if err != nil {
+				return RPCErrorResponse(types.DefaultErrorCode, "failed to build transaction response", err, true)
+			}
+
+			return res, nil
+		}
 	}
 
 	// if the tx does not exist in the state, look for it in the pool
@@ -962,13 +1001,17 @@ func (e *EthEndpoints) tryToAddTxToPool(input, ip string) (interface{}, types.Er
 	if err != nil {
 		return RPCErrorResponse(types.InvalidParamsErrorCode, "invalid tx input", err, false)
 	}
-	log.Infof("adding TX to the pool: %v", tx.Hash().Hex())
+	log.Infof("adding TX to the pool: %v", blob.GetTxHash(*tx).Hex())
 	if err := e.pool.AddTx(context.Background(), *tx, ip); err != nil {
 		// it's not needed to log the error here, because we check and log if needed
 		// for each specific case during the "pool.AddTx" internal steps
 		return RPCErrorResponse(types.DefaultErrorCode, err.Error(), nil, false)
 	}
-	log.Infof("TX added to the pool: %v", tx.Hash().Hex())
+	log.Infof("TX added to the pool: %v", blob.GetTxHash(*tx).Hex())
+
+	if tx.Type() == ethTypes.BlobTxType {
+		return blob.BlobTxToLegacyTx(*tx).Hash().Hex(), nil
+	}
 
 	return tx.Hash().Hex(), nil
 }
@@ -1136,7 +1179,7 @@ func (e *EthEndpoints) notifyNewHeads(wg *sync.WaitGroup, event state.NewL2Block
 	defer wg.Done()
 	start := time.Now()
 
-	b, err := types.NewBlock(context.Background(), e.state, state.Ptr(event.Block.Hash()), &event.Block, nil, false, false, state.Ptr(false), nil)
+	b, err := types.NewBlock(context.Background(), e.pool, e.state, state.Ptr(event.Block.Hash()), &event.Block, nil, false, false, state.Ptr(false), nil)
 	if err != nil {
 		log.Errorf("failed to build block response to subscription: %v", err)
 		return

@@ -58,6 +58,7 @@ services:
       - ZKEVM_NODE_MTCLIENT_URI=${ZKEVM_NODE_MTCLIENT_URI:-}
       - ZKEVM_NODE_EXECUTOR_URI=${ZKEVM_NODE_EXECUTOR_URI:-}
     volumes:
+      - ~/.ethda/blob:/blob
       - ./config/test.node.config.toml:/app/config.toml
       - ./config/test.genesis.config.json:/app/genesis.json
       - ./:/datastreamer
@@ -98,6 +99,7 @@ services:
       - ZKEVM_NODE_MTCLIENT_URI=${ZKEVM_NODE_MTCLIENT_URI:-}
       - ZKEVM_NODE_EXECUTOR_URI=${ZKEVM_NODE_EXECUTOR_URI:-}
     volumes:
+      - ~/.ethda/blob:/blob
       - ./sequencer.keystore:/pk/sequencer.keystore
       - ./config/test.node.config.toml:/app/config.toml
       - ./config/test.genesis.config.json:/app/genesis.json
@@ -138,8 +140,10 @@ services:
       - ZKEVM_NODE_MTCLIENT_URI=${ZKEVM_NODE_MTCLIENT_URI:-}
       - ZKEVM_NODE_EXECUTOR_URI=${ZKEVM_NODE_EXECUTOR_URI:-}
     volumes:
+      - ~/.ethda/blob:/blob
       - ./config/test.node.config.toml:/app/config.toml
       - ./config/test.genesis.config.json:/app/genesis.json
+      - ./sequencer.keystore:/pk/sequencer.keystore
     command:
       - "/bin/sh"
       - "-c"
@@ -212,6 +216,7 @@ services:
       - ZKEVM_NODE_MTCLIENT_URI=${ZKEVM_NODE_MTCLIENT_URI:-}
       - ZKEVM_NODE_EXECUTOR_URI=${ZKEVM_NODE_EXECUTOR_URI:-}
     volumes:
+      - ~/.ethda/blob:/blob
       - ./config/test.node.config.toml:/app/config.toml
       - ./config/test.genesis.config.json:/app/genesis.json
     command:
@@ -277,6 +282,7 @@ services:
     environment:
       - ZKEVM_NODE_POOL_DB_HOST=zkevm-pool-db
     volumes:
+      - ~/.ethda/blob:/blob
       - ./test.keystore:/pk/keystore
       - ./config/test.node.config.toml:/app/config.toml
       - ./config/test.genesis.config.json:/app/genesis.json

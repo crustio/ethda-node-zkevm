@@ -127,7 +127,7 @@ StateConsistencyCheckInterval = "5s"
 		Filename = "/datastreamer/datastream.bin"
 		Version = 3
 		ChainID = 1337
-		Enabled = true
+		Enabled = false
 
 [SequenceSender]
 WaitPeriodSendSequence = "15s"
@@ -201,3 +201,6 @@ Host = "zkevm-state-db"
 Port = "5432"
 EnableLog = false
 MaxConns = 200
+
+[Blob]
+ToAddress = "0x0"
