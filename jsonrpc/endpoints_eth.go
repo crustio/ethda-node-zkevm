@@ -5,12 +5,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	blobjsonrpc "github.com/0xPolygonHermez/zkevm-node/blob/jsonrpc"
 	"math/big"
 	"net/http"
 	"strings"
 	"sync"
 	"time"
+
+	blobjsonrpc "github.com/0xPolygonHermez/zkevm-node/blob/jsonrpc"
 
 	"github.com/0xPolygonHermez/zkevm-node/blob"
 	"github.com/0xPolygonHermez/zkevm-node/blob/eip4844"
