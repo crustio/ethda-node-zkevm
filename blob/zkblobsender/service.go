@@ -93,9 +93,6 @@ func (s *ZkblobSender) currentSequenceDone() {
 	s.seqQueue.Dequeue()
 }
 
-func (s *ZkblobSender) saveAndDone(from, to uint64) {
-}
-
 func (s *ZkblobSender) tryToSendZkblob(ctx context.Context) {
 
 	retry := false
@@ -246,6 +243,7 @@ func (s *ZkblobSender) getSequenceBlobsToSend(ctx context.Context) error {
 
 	// GetSequences(ctx, lastFromNumber, nil) return sequences where FromBatchNumber >= lastFromNumber
 	// so lastFromNumber(i = 0) is already in the blobDB, skip it
+	// NOTE. sequences-from-1-to-1 no need to be sent, so we need to skip it
 	for i := 1; i < len(seqs); i++ {
 		seq := seqs[i]
 
