@@ -160,7 +160,8 @@ BatchProofL1BlockConfirmations = 2
 ForcedGas = 0
 PrivateKeys = [
 	{Path = "/pk/sequencer.keystore", Password = "testonly"},
-	{Path = "/pk/aggregator.keystore", Password = "testonly"}
+	{Path = "/pk/aggregator.keystore", Password = "testonly"},
+	{Path = "/pk/blob.keystore", Password = "testonly"}
 ]
 
 [L2GasPriceSuggester]
@@ -203,3 +204,11 @@ Host = "zkevm-state-db"
 Port = "5432"
 EnableLog = false
 MaxConns = 200
+
+[Blob]
+WaitPeriodSendBlob = "5s"
+WaitAfterBlobSent = "1s"
+GasOffset = 1000
+DasAddress = "0x0"
+ZkBlobAddress = "0x0"
+PrivateKey = {Path = "/pk/blob.keystore", Password = "testonly"}

@@ -92,18 +92,18 @@ run: ## Runs a full node
 	$(RUNJSONRPC)
 ```
 
-- **修改blob交易的ToAddress地址**
+- **修改blob交易的DasAddress地址**
 
 ```
 git clone git@github.com:crustio/zkblob-contracts.git
 ```
-使用sequencer账户部署DAS.sol合约，得到合约地址\<ToAddress\>
+使用sequencer账户部署DAS.sol合约，得到合约地址\<DasAddress\>
 
-将`/test/config/test.node.config.toml`中Blob部分的ToAddress修改成\<ToAddress\>:
+将`/test/config/test.node.config.toml`中Blob部分的DasAddress修改成\<DasAddress\>:
 
 ```toml
 [Blob]
-ToAddress = "<ToAddress>"
+DasAddress = "<DasAddress>"
 ```
 
 - **重启json-rpc**

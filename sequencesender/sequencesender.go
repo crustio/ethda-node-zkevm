@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/0xPolygonHermez/zkevm-node/blob/zkblob"
 	ethman "github.com/0xPolygonHermez/zkevm-node/etherman"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/types"
 	"github.com/0xPolygonHermez/zkevm-node/ethtxmanager"
@@ -258,9 +257,6 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context) {
 
 	s.lastSequenceInitialBatch = sequences[0].BatchNumber
 	s.lastSequenceEndBatch = lastSequence.BatchNumber
-
-	// ZkBlob tx post-processing
-	zkblob.HandleSequenceToZkBlob(ctx, sequences, ethTxManagerOwner, s.cfg.SenderAddress, s.etherman, s.ethTxManager, s.cfg.GasOffset)
 }
 
 // getSequencesToSend generates an array of sequences to be send to L1.

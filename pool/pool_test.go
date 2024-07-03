@@ -101,7 +101,7 @@ var (
 	}
 	ip      = "101.1.50.20"
 	blobCfg = blob.Config{
-		ToAddress: "0x0",
+		DasAddress: "0x0",
 	}
 )
 

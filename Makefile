@@ -82,6 +82,14 @@ build: ## Builds the binary locally into ./dist
 build-docker: ## Builds a docker image with the node binary
 	docker build -t zkevm-node -f ./Dockerfile .
 
+.PHONY: build-docker-zkblob
+build-docker-zkblob: ## Builds a docker image with the zkblob binary
+	docker build --no-cache=true -t zkblob-sender -f ./blob/zkblobsender/Dockerfile .
+
+.PHONY: build-zkblob
+build-zkblob: ## Builds the zkblob binary locally into ./dist
+	$(GOENVVARS) go build -o $(GOBIN)/zkblob-sender ./blob/zkblobsender
+
 .PHONY: build-docker-nc
 build-docker-nc: ## Builds a docker image with the node binary - but without build cache
 	docker build --no-cache=true -t zkevm-node -f ./Dockerfile .
