@@ -31,7 +31,7 @@ func (p *Pool) validateBlobTx(ctx context.Context, tx types.Transaction) error {
 	log.Infof("from: ", from.Hex())
 
 	// Check `to` address
-	toAddress := common.HexToAddress(p.blobCfg.ToAddress)
+	toAddress := common.HexToAddress(p.blobCfg.DasAddress)
 	if tx.To() == nil || *tx.To() != toAddress {
 		return fmt.Errorf("blob transaction to address expect %v but got %v", toAddress, tx.To())
 	}

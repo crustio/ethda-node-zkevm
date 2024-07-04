@@ -564,6 +564,14 @@ stop-approve-pol: ## Stops approve in node container
 stop-approve-pol-v1tov2: ## Stops approve in node container
 	$(STOPV1TOV2APPROVE)
 
+.PHONY: run-zkblob-sender
+run-zkblob-sender: ## Runs the zkblob sender service
+	$(DOCKERCOMPOSE) up -d zkblob-sender
+
+.PHONY: stop-zkblob-sender
+stop-zkblob-sender: ## Stops the zkblob sender service
+	$(DOCKERCOMPOSE) stop zkblob-sender && $(DOCKERCOMPOSE) rm -f zkblob-sender
+
 .PHONY: run
 run: ## Runs a full node
 	$(RUNSTATEDB)
